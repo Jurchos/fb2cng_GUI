@@ -20,6 +20,8 @@ namespace fb2cng_GUI
         // Елементи інтерфейсу: прапорці (чекбокси)
         private CheckBox chkFolder, chkConfig, chkDeleteMain, chkDeleteSub;
         private CheckBox chkMinimize, chkHideProgress;
+        // НОВИЙ ЕЛЕМЕНТ: Чекбокс для перезапису файлів
+        private CheckBox chkOverwrite;
 
         // Елементи інтерфейсу: текстові поля
         private TextBox txtFolder, txtConfig, txtMenu;
@@ -58,7 +60,10 @@ namespace fb2cng_GUI
             // Загальні параметри головного вікна програми
             Text = "GUI for fb2cng";
             Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); // Іконка в кут програми
-            Size = new Size(500, 660);
+
+            // ЗБІЛЬШЕНО ВИСОТУ ВІКНА: з 660 на 690, щоб уникнути накладання елементів внизу
+            Size = new Size(500, 690);
+
             FormBorderStyle = FormBorderStyle.FixedSingle;  // Заборона зміни розміру вікна
             MaximizeBox = false;                            // Вимкнення кнопки розгортання на весь екран
             StartPosition = FormStartPosition.CenterScreen; // Поява по центру екрана
@@ -67,6 +72,7 @@ namespace fb2cng_GUI
             // Підібрані координати для уникнення накладання кнопок внизу додатка
             int currentY = 6;
             int padding = 12;
+
 
             // --- КНОПКА ДОВІДКИ (У СТИЛІ КНОПКИ ТЕМИ ТА ЗАКРУГЛЕННЯМ 6) ---
             btnHelp = new Button
@@ -142,13 +148,17 @@ namespace fb2cng_GUI
 
             // 6. Блок опцій автоматизації (ВИРІВНЯНО СИМЕТРИЧНО ПО ЛІНІЇ ІНТЕРФЕЙСУ)
             currentY += 60 + padding;
-            // Головний чекбокс стоїть строго під вибором папки (X = 20)
-            chkDeleteMain = new CheckBox { Location = new Point(20, currentY), Size = new Size(440, 24), FlatStyle = FlatStyle.Flat };
+
+            // НОВИЙ ЕЛЕМЕНТ: Чекбокс для перезапису файлів (стоїть першим у Блоці 6)
+            chkOverwrite = new CheckBox { Location = new Point(20, currentY), Size = new Size(440, 24), FlatStyle = FlatStyle.Flat };
+
+            // Усі інші чекбокси зміщено вниз на +26 пікселів, щоб звільнити місце
+            chkDeleteMain = new CheckBox { Location = new Point(20, currentY + 26), Size = new Size(440, 24), FlatStyle = FlatStyle.Flat };
 
             // Підпункти зсунуті вправо (X = 45) для створення красивої дерева-ієрархії елементів
-            chkDeleteSub = new CheckBox { Location = new Point(45, currentY + 26), Size = new Size(415, 24), FlatStyle = FlatStyle.Flat };
-            chkMinimize = new CheckBox { Location = new Point(20, currentY + 52), Size = new Size(415, 24), FlatStyle = FlatStyle.Flat };
-            chkHideProgress = new CheckBox { Location = new Point(45, currentY + 78), Size = new Size(415, 24), FlatStyle = FlatStyle.Flat };
+            chkDeleteSub = new CheckBox { Location = new Point(45, currentY + 52), Size = new Size(415, 24), FlatStyle = FlatStyle.Flat };
+            chkMinimize = new CheckBox { Location = new Point(20, currentY + 78), Size = new Size(415, 24), FlatStyle = FlatStyle.Flat };
+            chkHideProgress = new CheckBox { Location = new Point(45, currentY + 104), Size = new Size(415, 24), FlatStyle = FlatStyle.Flat };
 
             // Тільки чистий базовий взаємозв'язок для видалення файлів (без зайвого конфліктного сміття подій)
             chkDeleteMain.CheckedChanged += (s, e) =>
@@ -159,17 +169,20 @@ namespace fb2cng_GUI
                     chkDeleteSub.Checked = false;
                 }
             };
-            Controls.AddRange(new Control[] { chkDeleteMain, chkDeleteSub, chkMinimize, chkHideProgress });
+
+            // Додано chkOverwrite до списку контролів форми
+            Controls.AddRange(new Control[] { chkOverwrite, chkDeleteMain, chkDeleteSub, chkMinimize, chkHideProgress });
 
             // 7. Кнопка інтеграції/деінтеграції в провідник Windows
-            currentY += 105 + padding;
-            btnIntegrate = new Button { Location = new Point(20, currentY), Size = new Size(440, 35), FlatStyle = FlatStyle.Flat };
+            // ЗАФІКСОВАНО КООРДИНАТУ Y: замість "currentY += 135 + padding;" ставимо чітко 532,
+            // щоб кнопка була строго над нижньою панеллю і елементи не наповзали один на одного.
+            btnIntegrate = new Button { Location = new Point(20, 532), Size = new Size(440, 35), FlatStyle = FlatStyle.Flat };
             btnIntegrate.Click += BtnIntegrate_Click;
             MakeButtonRounded(btnIntegrate, 6);
             Controls.Add(btnIntegrate);
 
             // Нижня панель управління (Зміна теми, збереження та скасування)
-            btnThemeToggle = new Button { Location = new Point(20, 560), Size = new Size(40, 32), Text = "🌓", FlatStyle = FlatStyle.Flat };
+            btnThemeToggle = new Button { Location = new Point(20, 590), Size = new Size(40, 32), Text = "🌓", FlatStyle = FlatStyle.Flat };
             btnThemeToggle.Click += (s, e) =>
             {
                 _settings.Theme = _settings.Theme == "Dark" ? "Light" : "Dark";
@@ -181,8 +194,8 @@ namespace fb2cng_GUI
             };
             MakeButtonRounded(btnThemeToggle, 6);
 
-            btnOk = new Button { Location = new Point(250, 560), Size = new Size(100, 32), FlatStyle = FlatStyle.Flat };
-            btnCancel = new Button { Location = new Point(360, 560), Size = new Size(100, 32), FlatStyle = FlatStyle.Flat };
+            btnOk = new Button { Location = new Point(250, 590), Size = new Size(100, 32), FlatStyle = FlatStyle.Flat };
+            btnCancel = new Button { Location = new Point(360, 590), Size = new Size(100, 32), FlatStyle = FlatStyle.Flat };
             MakeButtonRounded(btnOk, 6);
             MakeButtonRounded(btnCancel, 6);
 

@@ -19,6 +19,9 @@ namespace fb2cng_GUI
             txtConfig.Text = _settings.CustomConfig;
             txtMenu.Text = _settings.MenuTitle;
 
+            // ЗАВАНТАЖЕННЯ НОВОЇ ОПЦІЇ: Встановлюємо галочку перезапису з файлу конфігурації
+            chkOverwrite.Checked = _settings.OverwriteExisting;
+
             chkDeleteMain.Checked = _settings.DeleteAfterConvert;
             chkDeleteSub.Checked = _settings.AutoDeleteToRecycle;
             chkDeleteSub.Enabled = chkDeleteMain.Checked;
@@ -42,6 +45,10 @@ namespace fb2cng_GUI
             _settings.UseCustomConfig = chkConfig.Checked;
             _settings.CustomConfig = txtConfig.Text;
             _settings.MenuTitle = txtMenu.Text;
+
+            // ЗБЕРЕЖЕННЯ НОВОЇ ОПЦІЇ: Зчитуємо стан галочки перезапису перед збереженням
+            _settings.OverwriteExisting = chkOverwrite.Checked;
+
             _settings.DeleteAfterConvert = chkDeleteMain.Checked;
             _settings.AutoDeleteToRecycle = chkDeleteSub.Checked;
             _settings.StartMinimized = chkMinimize.Checked;
@@ -59,6 +66,9 @@ namespace fb2cng_GUI
             lblMenu.Text = Localization.Get(lang, "Menu");
             btnOk.Text = Localization.Get(lang, "Ok");
             btnCancel.Text = Localization.Get(lang, "Cancel");
+
+            // ПЕРЕКЛАД НОВОЇ ОПЦІЇ: Динамічно змінюємо текст на украинську/англійську/російську
+            chkOverwrite.Text = Localization.Get(lang, "OverwriteFiles");
             chkDeleteMain.Text = Localization.Get(lang, "DeleteMain");
             chkDeleteSub.Text = Localization.Get(lang, "DeleteSub");
             chkMinimize.Text = Localization.Get(lang, "Minimize");

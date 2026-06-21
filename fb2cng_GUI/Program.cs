@@ -167,10 +167,18 @@ namespace fb2cng_GUI
                                 fbcArgs += "-c \"" + settings.CustomConfig + "\" ";
                             }
 
-                            // Формуємо повний рядок аргументів для виклику консольного fbc.exe
-                            fbcArgs += "convert --to " + formatLower + " \"" + sourceFb2 + "\" \"" + targetDir + "\"";
+                            // МОДИФІКАЦІЯ АРГУМЕНТІВ: Якщо увімкнено чекбокс, додаємо команду перезапису файлу --ow
+                            if (settings.OverwriteExisting)
+                            {
+                                fbcArgs += "convert --to " + formatLower + " --ow \"" + sourceFb2 + "\" \"" + targetDir + "\"";
+                            }
+                            else
+                            {
+                                // Стандартна поведінка (без перезапису), яка була раніше
+                                fbcArgs += "convert --to " + formatLower + " \"" + sourceFb2 + "\" \"" + targetDir + "\"";
+                            }
 
-                            // Описуємо базові параметри запуску консольного процесу конвертера
+                            // Описуємо базові параметри запуска консольного процесу конвертера
                             ProcessStartInfo psi = new ProcessStartInfo
                             {
                                 FileName = fbcPath,

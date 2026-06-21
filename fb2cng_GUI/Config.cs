@@ -20,6 +20,7 @@ namespace fb2cng_GUI
         public bool AutoDeleteToRecycle { get; set; }
         public bool StartMinimized { get; set; }
         public bool HideProgress { get; set; }
+        public bool OverwriteExisting { get; set; }
 
         public AppSettings()
         {
@@ -36,6 +37,7 @@ namespace fb2cng_GUI
             AutoDeleteToRecycle = false;
             StartMinimized = false;
             HideProgress = false;
+            OverwriteExisting = false;
         }
 
         private static readonly string ConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "gui_config.txt");
@@ -114,6 +116,10 @@ namespace fb2cng_GUI
                     {
                         settings.HideProgress = bool.Parse(val);
                     }
+                    else if (key == "OverwriteExisting")
+                    {
+                        settings.OverwriteExisting = bool.Parse(val);
+                    }
                 }
             }
             catch { }
@@ -136,7 +142,8 @@ namespace fb2cng_GUI
                 "DeleteAfterConvert=" + DeleteAfterConvert.ToString(),
                 "AutoDeleteToRecycle=" + AutoDeleteToRecycle.ToString(),
                 "StartMinimized=" + StartMinimized.ToString(),
-                "HideProgress=" + HideProgress.ToString()
+                "HideProgress=" + HideProgress.ToString(),
+                "OverwriteExisting=" + OverwriteExisting.ToString()
             };
             File.WriteAllLines(ConfigPath, lines.ToArray());
         }
@@ -161,6 +168,7 @@ namespace fb2cng_GUI
                 ["Ok"] = "OK",
                 ["Cancel"] = "Cancel",
                 ["Success"] = "\nSuccess!\n\u2705",
+                ["OverwriteFiles"] = "Overwrite already existing files",
                 ["DeleteMain"] = "Delete fb2 files selected for conversion",
                 ["DeleteSub"] = "Automatically delete files to the Recycle Bin",
                 ["ConfirmTitle"] = "File Deletion",
@@ -168,7 +176,7 @@ namespace fb2cng_GUI
                 ["Minimize"] = "Minimize progress bar window",
                 ["HideProg"] = "Hide progress bar window",
                 ["HelpTitle"] = "About Program",
-                ["HelpText"] = "A GUI wrapper for the fb2cng (fbc) converter to configure fb2 file conversion and add a converting option to the Windows context menu.\n\nCreated by Jurchos & Gemini\nVersion: 0.2"
+                ["HelpText"] = "A GUI wrapper for the fb2cng (fbc) converter to configure fb2 file conversion and add a converting option to the Windows context menu.\n\nCreated by Jurchos & Gemini\nVersion: 0.3"
             };
             Translations["English"] = en;
 
@@ -184,6 +192,7 @@ namespace fb2cng_GUI
                 ["Ok"] = "ОК",
                 ["Cancel"] = "Скасувати",
                 ["Success"] = "\nУспішно!\n\u2705",
+                ["OverwriteFiles"] = "Перезаписувати уже існуючі файли",
                 ["DeleteMain"] = "Видаляти файли fb2, обрані для конвертації",
                 ["DeleteSub"] = "Автоматично видаляти файли в корзину",
                 ["ConfirmTitle"] = "Видалення файлів",
@@ -191,7 +200,7 @@ namespace fb2cng_GUI
                 ["Minimize"] = "Мінімізувати вікно прогресу",
                 ["HideProg"] = "Не показувати вікно прогресу",
                 ["HelpTitle"] = "Про програму",
-                ["HelpText"] = "Програма-оболонка конвертера fb2cng (fbc) для налаштування конвертації fb2-файлів з додаванням опції конвертування до контекстного меню Windows.\n\nСтворено: Jurchos & Gemini\nВерсія: 0.2"
+                ["HelpText"] = "Програма-оболонка конвертера fb2cng (fbc) для налаштування конвертації fb2-файлів з додаванням опції конвертування до контекстного меню Windows.\n\nСтворено: Jurchos & Gemini\nВерсія: 0.3"
             };
             Translations["Українська"] = uk;
 
@@ -207,6 +216,7 @@ namespace fb2cng_GUI
                 ["Ok"] = "ОК",
                 ["Cancel"] = "Отмена",
                 ["Success"] = "\nУспех!\n\u2705",
+                ["OverwriteFiles"] = "Перезаписывать уже существующие файлы",
                 ["DeleteMain"] = "Удалять файлы fb2, выбранные для конвертации",
                 ["DeleteSub"] = "Автоматически удалять файлы в корзину",
                 ["ConfirmTitle"] = "Удаление файлов",
@@ -214,7 +224,7 @@ namespace fb2cng_GUI
                 ["Minimize"] = "Сворачивать окно прогресса",
                 ["HideProg"] = "Не показывать окно прогресса",
                 ["HelpTitle"] = "О программе",
-                ["HelpText"] = "Программа-оболочка конвертера fb2cng (fbc) для настройки конвертации fb2-файлов с добавлением опции конвертирования в контекстное меню Windows.\n\nСоздано: Jurchos & Gemini\nВерсия: 0.2"
+                ["HelpText"] = "Программа-оболочка конвертера fb2cng (fbc) для настройки конвертации fb2-файлов с добавлением опции конвертирования в контекстное меню Windows.\n\nСоздано: Jurchos & Gemini\nВерсия: 0.3"
             };
             Translations["Русский"] = ru;
         }
