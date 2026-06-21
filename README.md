@@ -1,6 +1,6 @@
 # fb2cng_GUI
 
-A graphical user interface (GUI) wrapper for the `fb2cng` (fbc) console converter. This application allows users to easily configure conversion settings for FB2 e-books and trigger the conversion process directly via a convenient drop-down menu.
+A graphical user interface (GUI) wrapper for the [fb2cng (fbc)](https://github.com/rupor-github/fb2cng) console converter. This application allows users to easily configure conversion settings for FB2 e-books and trigger the conversion process directly via a convenient drop-down menu.
 
 > [!NOTE]
 > **Project Background & Disclaimer:**  
