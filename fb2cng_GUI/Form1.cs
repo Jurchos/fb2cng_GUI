@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using System.Windows.Forms;
 
 namespace fb2cng_GUI
@@ -9,7 +10,7 @@ namespace fb2cng_GUI
     public partial class Form1 : Form
     {
         // Посилання на об'єкт конфігурації (налаштування)
-        private AppSettings _settings;
+        private readonly AppSettings _settings;
 
         // Елементи інтерфейсу: текстові підписи
         private Label lblLang, lblFormat, lblMenu;
@@ -17,23 +18,31 @@ namespace fb2cng_GUI
         // Елементи інтерфейсу: випадаючі списки
         private ComboBox cbLang, cbFormat;
 
-        // Елементи інтерфейсу: прапорці (чекбокси)
-        private CheckBox chkFolder, chkConfig, chkDeleteMain, chkDeleteSub;
-        private CheckBox chkMinimize, chkHideProgress;
-        // НОВИЙ ЕЛЕМЕНТ: Чекбокс для перезапису файлів
-        private CheckBox chkOverwrite;
+        // Елементи інтерфейсу: прапорці (чекбокси) - папка призначення, конфігурація, перезапис,
+        // видалити з підтвердженням, видалити в корзину, мінімізувати прогрес бар, приховати прогрес бар
+        private CheckBox chkFolder, chkConfig, chkOverwrite, chkDeleteMain, chkDeleteSub, chkMinimize, chkHideProgress;
 
         // Елементи інтерфейсу: текстові поля
         private TextBox txtFolder, txtConfig, txtMenu;
 
-        // Елементи інтерфейсу: кнопки дій та вибору файлів/папок
-        private Button btnFolderBrowse, btnConfigBrowse, btnIntegrate, btnOk, btnCancel, btnThemeToggle;
-
-        // Кнопка "Довідка" (прямокутний значок питання у стилі теми)
-        private Button btnHelp;
+        // Елементи інтерфейсу: кнопки дій та вибору файлів/папок (довідка, папка призначення,
+        // конфігураційний файл, інтеграція, ОК, Відміна, перемикання теми)
+        private Button btnHelp, btnFolderBrowse, btnConfigBrowse, btnIntegrate, btnOk, btnCancel, btnThemeToggle;
 
         // Форма для відображення спливаючого вікна з описом програми
         private Form infoTooltipForm;
+        private int paddingBottom;
+        private int finalHeight;
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern IntPtr SetActiveWindow(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool FlashWindow(IntPtr hwnd, bool bInvert);
 
         // Конструктор форми: завантажує дані та налаштовує зовнішній вигляд
         public Form1()
@@ -61,106 +70,351 @@ namespace fb2cng_GUI
             Text = "GUI for fb2cng";
             Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); // Іконка в кут програми
 
-            // ЗБІЛЬШЕНО ВИСОТУ ВІКНА: з 660 на 690, щоб уникнути накладання елементів внизу
-            Size = new Size(500, 690);
-
-            FormBorderStyle = FormBorderStyle.FixedSingle;  // Заборона зміни розміру вікна
+            FormBorderStyle = FormBorderStyle.FixedSingle;  // Заборона зміни розміру вікна користувачем
             MaximizeBox = false;                            // Вимкнення кнопки розгортання на весь екран
             StartPosition = FormStartPosition.CenterScreen; // Поява по центру екрана
             Font = new Font("Segoe UI", 10F, FontStyle.Regular); // Стандартний шрифт
 
-            // Підібрані координати для уникнення накладання кнопок внизу додатка
-            int currentY = 6;
-            int padding = 12;
-
-
-            // --- КНОПКА ДОВІДКИ (У СТИЛІ КНОПКИ ТЕМИ ТА ЗАКРУГЛЕННЯМ 6) ---
+            // ---КНОПКА ДОВІДКИ-- -
             btnHelp = new Button
             {
-                Location = new Point(430, currentY),
-                Size = new Size(32, 32),
-                Text = "?",
+                Text = "", // Порожній текст, малюємо вручну
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
             };
-            MakeButtonRounded(btnHelp, 6); // Прямокутна форма з легким закругленням кутів
-            btnHelp.Click += BtnHelp_Click; // Прив'язка події натискання
+            btnHelp.FlatAppearance.BorderSize = 0; // Ховаємо стандартну рамку
+
+            // Змінна для відстеження наведення миші на кнопку допомоги
+            bool isHelpHovered = false;
+
+            // Події для ефекту підсвічування при наведенні
+            btnHelp.MouseEnter += (s, e) => { isHelpHovered = true; btnHelp.Invalidate(); };
+            btnHelp.MouseLeave += (s, e) => { isHelpHovered = false; btnHelp.Invalidate(); };
+
+            // БЕРЕМО ІКОНКУ НАПРЯМУ З РЕСУРСІВ ПРОЕКТУ
+            // Примітка: Visual Studio автоматично замінить дефіс на підкреслення: icon_info
+            Image infoIcon = Properties.Resources.icon_info;
+
+            // Динамічне малювання картинки
+            btnHelp.Paint += (s, e) =>
+            {
+                // 1. Визначаємо колір фону кнопки (з урахуванням наведення курсору)
+                Color baseBgColor = btnHelp.BackColor;
+                Color drawBgColor = baseBgColor;
+
+                if (isHelpHovered)
+                {
+                    // Автоматично адаптуємо підсвічування під світлу або темну тему
+                    bool isDark = baseBgColor.R < 128;
+                    drawBgColor = isDark
+                        ? Color.FromArgb(baseBgColor.R + 25, baseBgColor.G + 25, baseBgColor.B + 25)
+                        : Color.FromArgb(baseBgColor.R - 20, baseBgColor.G - 20, baseBgColor.B - 20);
+                }
+
+                // Заливка фону кнопки
+                using (Brush backBrush = new SolidBrush(drawBgColor))
+                {
+                    e.Graphics.FillRectangle(backBrush, 0, 0, btnHelp.Width, btnHelp.Height);
+                }
+
+                // 2. Малювання іконки з автоматичним масштабуванням
+                if (infoIcon != null)
+                {
+                    // Налаштування високої якості рендерингу зображення
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                    // Розраховуємо відступ (10% від розміру кнопки), щоб іконка не липла до країв
+                    int paddingX = (int)(btnHelp.Width * 0.10);
+                    int paddingY = (int)(btnHelp.Height * 0.10);
+
+                    // Визначаємо область для малювання (автоматично масштабується під DPI програми)
+                    Rectangle destRect = new Rectangle(
+                        paddingX,
+                        paddingY,
+                        btnHelp.Width - (paddingX * 2),
+                        btnHelp.Height - (paddingY * 2)
+                    );
+
+                    e.Graphics.DrawImage(infoIcon, destRect);
+                }
+                else
+                {
+                    // Резервний варіант на випадок відсутності ресурсу
+                    using (Font fallbackFont = new Font("Segoe UI", btnHelp.Height * 0.4f, FontStyle.Bold))
+                    using (Brush textBrush = new SolidBrush(btnHelp.ForeColor))
+                    using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                    {
+                        e.Graphics.DrawString("?", fallbackFont, textBrush, new RectangleF(0, 0, btnHelp.Width, btnHelp.Height), sf);
+                    }
+                }
+            };
+
+            btnHelp.Click += BtnHelp_Click;
             Controls.Add(btnHelp);
 
-            // 1. Блок: Мова інтерфейсу
-            currentY += 18;
-            lblLang = new Label { Location = new Point(20, currentY), Size = new Size(400, 20) };
-            cbLang = new ComboBox { Location = new Point(20, currentY + 22), Size = new Size(440, 30), DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat };
+            // 1. Блок: Мова інтерфейсу (Додаємо OwnerDrawFixed)
+            lblLang = new Label();
+            cbLang = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                FlatStyle = FlatStyle.Flat,
+                DrawMode = DrawMode.OwnerDrawFixed // Звільняє висоту комбобоксу від обмежень ОС
+            };
+            // Додаємо подію, щоб текст у комбобоксі малювався по центру (обов'язково для OwnerDrawFixed)
+            cbLang.DrawItem += (s, e) =>
+            {
+                if (e.Index < 0)
+                {
+                    return;
+                }
+                e.DrawBackground();
+                TextRenderer.DrawText(e.Graphics, cbLang.Items[e.Index].ToString(), cbLang.Font, e.Bounds, cbLang.ForeColor, TextFormatFlags.VerticalCenter);
+                e.DrawFocusRectangle();
+            };
             cbLang.Items.AddRange(new object[] { "English", "Українська", "Русский" });
             cbLang.SelectedIndexChanged += (s, e) => { ApplyLocalization(); };
             Controls.AddRange(new Control[] { lblLang, cbLang });
 
-            // 2. Блок: Назва пункту контекстного меню
-            currentY += 60 + padding;
-            lblMenu = new Label { Location = new Point(20, currentY), Size = new Size(440, 20) };
-            txtMenu = new TextBox { Location = new Point(20, currentY + 22), Size = new Size(440, 30), BorderStyle = BorderStyle.FixedSingle };
+            // 2. Блок: Назва пункту контекстного меню (Вмикаємо Multiline)
+            lblMenu = new Label();
+            txtMenu = new TextBox
+            {
+                BorderStyle = BorderStyle.FixedSingle,
+                Multiline = true // Звільняє висоту текстового поля
+            };
             Controls.AddRange(new Control[] { lblMenu, txtMenu });
 
-            // 3. Блок: Формат вихідного документа
-            currentY += 60 + padding;
-            lblFormat = new Label { Location = new Point(20, currentY), Size = new Size(440, 20) };
-            cbFormat = new ComboBox { Location = new Point(20, currentY + 22), Size = new Size(440, 30), DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat };
+            // 3. Блок: Формат вихідного документа (Додаємо OwnerDrawFixed)
+            lblFormat = new Label();
+            cbFormat = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                FlatStyle = FlatStyle.Flat,
+                DrawMode = DrawMode.OwnerDrawFixed
+            };
+            cbFormat.DrawItem += (s, e) =>
+            {
+                if (e.Index < 0)
+                {
+                    return;
+                }
+                e.DrawBackground();
+                TextRenderer.DrawText(e.Graphics, cbFormat.Items[e.Index].ToString(), cbFormat.Font, e.Bounds, cbFormat.ForeColor, TextFormatFlags.VerticalCenter);
+                e.DrawFocusRectangle();
+            };
             cbFormat.Items.AddRange(new object[] { "EPUB2", "KEPUB", "EPUB3", "AZW8", "KFX", "PDF", "TXT", "MD" });
             Controls.AddRange(new Control[] { lblFormat, cbFormat });
-            
+
             // 4. Блок: Папка для збереження результату
-            currentY += 60 + padding;
-            chkFolder = new CheckBox { Location = new Point(20, currentY), Size = new Size(440, 24) };
-            txtFolder = new TextBox { Location = new Point(20, currentY + 26), Size = new Size(390, 30), BorderStyle = BorderStyle.FixedSingle };
-            btnFolderBrowse = new Button { Location = new Point(420, currentY + 25), Size = new Size(40, 26), Text = "📁", FlatStyle = FlatStyle.Flat };
-            MakeButtonRounded(btnFolderBrowse, 4);
-            chkFolder.CheckedChanged += (s, e) => { txtFolder.Enabled = btnFolderBrowse.Enabled = chkFolder.Checked; };
+            chkFolder = new CheckBox();
+            txtFolder = new TextBox { BorderStyle = BorderStyle.FixedSingle };
+
+            btnFolderBrowse = new Button
+            {
+                Text = "", // Порожній текст, малюємо вручну
+                FlatStyle = FlatStyle.Flat
+            };
+            btnFolderBrowse.FlatAppearance.BorderSize = 0; // Ховаємо стандартну рамку
+
+            // Відстеження наведення миші для ефекту підсвічування
+            bool isOutFolderHovered = false;
+            btnFolderBrowse.MouseEnter += (s, e) => { isOutFolderHovered = true; btnFolderBrowse.Invalidate(); };
+            btnFolderBrowse.MouseLeave += (s, e) => { isOutFolderHovered = false; btnFolderBrowse.Invalidate(); };
+
+            // Використовуємо ту саму іконку папки з ресурсів
+            Image outFolderIcon = Properties.Resources.folder;
+
+            // Динамічне малювання іконки
+            btnFolderBrowse.Paint += (s, e) =>
+            {
+                // 1. Визначаємо колір фону з урахуванням наведення миші
+                Color baseBgColor = btnFolderBrowse.BackColor;
+                Color drawBgColor = baseBgColor;
+
+                if (isOutFolderHovered && btnFolderBrowse.Enabled) // Підсвічуємо лише якщо кнопка активна
+                {
+                    bool isDark = baseBgColor.R < 128;
+                    drawBgColor = isDark
+                        ? Color.FromArgb(baseBgColor.R + 25, baseBgColor.G + 25, baseBgColor.B + 25)
+                        : Color.FromArgb(baseBgColor.R - 20, baseBgColor.G - 20, baseBgColor.B - 20);
+                }
+
+                // Заливка фону кнопки
+                using (Brush backBrush = new SolidBrush(drawBgColor))
+                {
+                    e.Graphics.FillRectangle(backBrush, 0, 0, btnFolderBrowse.Width, btnFolderBrowse.Height);
+                }
+
+                // 2. Малювання іконки з автоматичним масштабуванням 100-200%
+                if (outFolderIcon != null)
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                    // Якщо кнопка вимкнена (Enabled = false), робимо іконку напівпрозорою
+                    if (!btnFolderBrowse.Enabled)
+                    {
+                        float[][] ptsArray = {
+                                  new float[] {1, 0, 0, 0, 0},
+                                  new float[] {0, 1, 0, 0, 0},
+                                  new float[] {0, 0, 1, 0, 0},
+                                  new float[] {0, 0, 0, 0.4f, 0}, // 40% непрозорості
+                                  new float[] {0, 0, 0, 0, 1}
+                                             };
+                        using (ImageAttributes imageAttributes = new ImageAttributes())
+                        {
+                            imageAttributes.SetColorMatrix(new ColorMatrix(ptsArray));
+
+                            int paddingX = (int)(btnFolderBrowse.Width * 0.10);
+                            int paddingY = (int)(btnFolderBrowse.Height * 0.10);
+                            Rectangle destRect = new Rectangle(paddingX, paddingY, btnFolderBrowse.Width - (paddingX * 2), btnFolderBrowse.Height - (paddingY * 2));
+
+                            e.Graphics.DrawImage(outFolderIcon, destRect, 0, 0, outFolderIcon.Width, outFolderIcon.Height, GraphicsUnit.Pixel, imageAttributes);
+                            return;
+                        }
+                    }
+
+                    // Малювання активної іконки з відступом 10%
+                    int pX = (int)(btnFolderBrowse.Width * 0.10);
+                    int pY = (int)(btnFolderBrowse.Height * 0.10);
+                    Rectangle dRect = new Rectangle(pX, pY, btnFolderBrowse.Width - (pX * 2), btnFolderBrowse.Height - (pY * 2));
+
+                    e.Graphics.DrawImage(outFolderIcon, dRect);
+                }
+                else
+                {
+                    // Резервний варіант
+                    using (Font fallbackFont = new Font("Segoe UI", btnFolderBrowse.Height * 0.4f, FontStyle.Bold))
+                    using (Brush textBrush = new SolidBrush(btnFolderBrowse.ForeColor))
+                    using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                    {
+                        e.Graphics.DrawString("...", fallbackFont, textBrush, new RectangleF(0, 0, btnFolderBrowse.Width, btnFolderBrowse.Height), sf);
+                    }
+                }
+            };
+
+            // Обов'язково викликаємо Invalidate(), щоб кнопка миттєво перемальовувалась (ставала напівпрозорою чи активною) при зміні чекбокса
+            chkFolder.CheckedChanged += (s, e) => { txtFolder.Enabled = btnFolderBrowse.Enabled = chkFolder.Checked; btnFolderBrowse.Invalidate(); };
+
             btnFolderBrowse.Click += (s, e) =>
             {
                 using (FolderBrowserDialog fbd = new FolderBrowserDialog())
                 {
-                    if (fbd.ShowDialog() == DialogResult.OK)
-                    {
-                        txtFolder.Text = fbd.SelectedPath;
-                    }
+                    if (fbd.ShowDialog() == DialogResult.OK) { txtFolder.Text = fbd.SelectedPath; }
                 }
             };
             Controls.AddRange(new Control[] { chkFolder, txtFolder, btnFolderBrowse });
 
+
             // 5. Блок: Конфігураційний файл (.yaml)
-            currentY += 60 + padding;
-            chkConfig = new CheckBox { Location = new Point(20, currentY), Size = new Size(440, 24) };
-            txtConfig = new TextBox { Location = new Point(20, currentY + 26), Size = new Size(390, 30), BorderStyle = BorderStyle.FixedSingle };
-            btnConfigBrowse = new Button { Location = new Point(420, currentY + 25), Size = new Size(40, 26), Text = "📁", FlatStyle = FlatStyle.Flat };
-            MakeButtonRounded(btnConfigBrowse, 4);
-            chkConfig.CheckedChanged += (s, e) => { txtConfig.Enabled = btnConfigBrowse.Enabled = chkConfig.Checked; };
+            chkConfig = new CheckBox();
+            txtConfig = new TextBox { BorderStyle = BorderStyle.FixedSingle };
+
+            btnConfigBrowse = new Button
+            {
+                Text = "", // Порожній текст, малюємо картинку вручну
+                FlatStyle = FlatStyle.Flat
+            };
+            btnConfigBrowse.FlatAppearance.BorderSize = 0; // Ховаємо стандартну рамку для краси
+
+            // Відстеження наведення миші для ефекту підсвічування
+            bool isFolderHovered = false;
+            btnConfigBrowse.MouseEnter += (s, e) => { isFolderHovered = true; btnConfigBrowse.Invalidate(); };
+            btnConfigBrowse.MouseLeave += (s, e) => { isFolderHovered = false; btnConfigBrowse.Invalidate(); };
+
+            // Завантажуємо іконку папки з ресурсів
+            Image folderIcon = Properties.Resources.folder;
+
+            // Динамічне малювання іконки папки
+            btnConfigBrowse.Paint += (s, e) =>
+            {
+                // 1. Визначаємо колір фону з урахуванням наведення миші
+                Color baseBgColor = btnConfigBrowse.BackColor;
+                Color drawBgColor = baseBgColor;
+
+                if (isFolderHovered && btnConfigBrowse.Enabled) // Підсвічуємо лише якщо кнопка активна
+                {
+                    bool isDark = baseBgColor.R < 128;
+                    drawBgColor = isDark
+                        ? Color.FromArgb(baseBgColor.R + 25, baseBgColor.G + 25, baseBgColor.B + 25)
+                        : Color.FromArgb(baseBgColor.R - 20, baseBgColor.G - 20, baseBgColor.B - 20);
+                }
+
+                // Заливка фону кнопки
+                using (Brush backBrush = new SolidBrush(drawBgColor))
+                {
+                    e.Graphics.FillRectangle(backBrush, 0, 0, btnConfigBrowse.Width, btnConfigBrowse.Height);
+                }
+
+                // 2. Малювання іконки папки з автоматичним масштабуванням 100-200%
+                if (folderIcon != null)
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                    // Потужний захист: якщо кнопка вимкнена (Enabled = false), малюємо іконку напівпрозорою
+                    if (!btnConfigBrowse.Enabled)
+                    {
+                        // Створюємо матрицю для знебарвлення/напівпрозорості
+                        float[][] ptsArray = {
+                                  new float[] {1, 0, 0, 0, 0},
+                                  new float[] {0, 1, 0, 0, 0},
+                                  new float[] {0, 0, 1, 0, 0},
+                                  new float[] {0, 0, 0, 0.4f, 0}, // 40% непрозорості для ефекту Disabled
+                                  new float[] {0, 0, 0, 0, 1}
+                                  };
+                        using (ImageAttributes imageAttributes = new ImageAttributes())
+                        {
+                            imageAttributes.SetColorMatrix(new ColorMatrix(ptsArray));
+
+                            int paddingX = (int)(btnConfigBrowse.Width * 0.10);
+                            int paddingY = (int)(btnConfigBrowse.Height * 0.10);
+                            Rectangle destRect = new Rectangle(paddingX, paddingY, btnConfigBrowse.Width - (paddingX * 2), btnConfigBrowse.Height - (paddingY * 2));
+
+                            e.Graphics.DrawImage(folderIcon, destRect, 0, 0, folderIcon.Width, folderIcon.Height, GraphicsUnit.Pixel, imageAttributes);
+                            return; // Виходимо, щоб не малювати звичайну іконку поверх
+                        }
+                    }
+
+                    // Малювання звичайної активної іконки з відступом 10%
+                    int pX = (int)(btnConfigBrowse.Width * 0.10);
+                    int pY = (int)(btnConfigBrowse.Height * 0.10);
+                    Rectangle dRect = new Rectangle(pX, pY, btnConfigBrowse.Width - (pX * 2), btnConfigBrowse.Height - (pY * 2));
+
+                    e.Graphics.DrawImage(folderIcon, dRect);
+                }
+                else
+                {
+                    // Резервний текстовий варіант
+                    using (Font fallbackFont = new Font("Segoe UI", btnConfigBrowse.Height * 0.4f, FontStyle.Bold))
+                    using (Brush textBrush = new SolidBrush(btnConfigBrowse.ForeColor))
+                    using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                    {
+                        e.Graphics.DrawString("...", fallbackFont, textBrush, new RectangleF(0, 0, btnConfigBrowse.Width, btnConfigBrowse.Height), sf);
+                    }
+                }
+            };
+
+            chkConfig.CheckedChanged += (s, e) => { txtConfig.Enabled = btnConfigBrowse.Enabled = chkConfig.Checked; btnConfigBrowse.Invalidate(); };
             btnConfigBrowse.Click += (s, e) =>
             {
                 using (OpenFileDialog ofd = new OpenFileDialog { Filter = "YAML config|*.yaml;*.yml" })
                 {
-                    if (ofd.ShowDialog() == DialogResult.OK)
-                    {
-                        txtConfig.Text = ofd.FileName;
-                    }
+                    if (ofd.ShowDialog() == DialogResult.OK) { txtConfig.Text = ofd.FileName; }
                 }
             };
             Controls.AddRange(new Control[] { chkConfig, txtConfig, btnConfigBrowse });
 
-            // 6. Блок опцій автоматизації (ВИРІВНЯНО СИМЕТРИЧНО ПО ЛІНІЇ ІНТЕРФЕЙСУ)
-            currentY += 60 + padding;
+            // 6. Блок опцій автоматизації
+            chkOverwrite = new CheckBox { FlatStyle = FlatStyle.Flat };
+            chkDeleteMain = new CheckBox { FlatStyle = FlatStyle.Flat };
+            chkDeleteSub = new CheckBox { FlatStyle = FlatStyle.Flat };
+            chkMinimize = new CheckBox { FlatStyle = FlatStyle.Flat };
+            chkHideProgress = new CheckBox { FlatStyle = FlatStyle.Flat };
 
-            // НОВИЙ ЕЛЕМЕНТ: Чекбокс для перезапису файлів (стоїть першим у Блоці 6)
-            chkOverwrite = new CheckBox { Location = new Point(20, currentY), Size = new Size(440, 24), FlatStyle = FlatStyle.Flat };
-
-            // Усі інші чекбокси зміщено вниз на +26 пікселів, щоб звільнити місце
-            chkDeleteMain = new CheckBox { Location = new Point(20, currentY + 26), Size = new Size(440, 24), FlatStyle = FlatStyle.Flat };
-
-            // Підпункти зсунуті вправо (X = 45) для створення красивої дерева-ієрархії елементів
-            chkDeleteSub = new CheckBox { Location = new Point(45, currentY + 52), Size = new Size(415, 24), FlatStyle = FlatStyle.Flat };
-            chkMinimize = new CheckBox { Location = new Point(20, currentY + 78), Size = new Size(415, 24), FlatStyle = FlatStyle.Flat };
-            chkHideProgress = new CheckBox { Location = new Point(45, currentY + 104), Size = new Size(415, 24), FlatStyle = FlatStyle.Flat };
-
-            // Тільки чистий базовий взаємозв'язок для видалення файлів (без зайвого конфліктного сміття подій)
             chkDeleteMain.CheckedChanged += (s, e) =>
             {
                 chkDeleteSub.Enabled = chkDeleteMain.Checked;
@@ -169,46 +423,115 @@ namespace fb2cng_GUI
                     chkDeleteSub.Checked = false;
                 }
             };
-
-            // Додано chkOverwrite до списку контролів форми
             Controls.AddRange(new Control[] { chkOverwrite, chkDeleteMain, chkDeleteSub, chkMinimize, chkHideProgress });
 
             // 7. Кнопка інтеграції/деінтеграції в провідник Windows
-            // ЗАФІКСОВАНО КООРДИНАТУ Y: замість "currentY += 135 + padding;" ставимо чітко 532,
-            // щоб кнопка була строго над нижньою панеллю і елементи не наповзали один на одного.
-            btnIntegrate = new Button { Location = new Point(20, 532), Size = new Size(440, 35), FlatStyle = FlatStyle.Flat };
+            btnIntegrate = new Button { FlatStyle = FlatStyle.Flat };
             btnIntegrate.Click += BtnIntegrate_Click;
-            MakeButtonRounded(btnIntegrate, 6);
             Controls.Add(btnIntegrate);
 
             // Нижня панель управління (Зміна теми, збереження та скасування)
-            btnThemeToggle = new Button { Location = new Point(20, 590), Size = new Size(40, 32), Text = "🌓", FlatStyle = FlatStyle.Flat };
+            btnThemeToggle = new Button
+            {
+                Text = "", // Порожній текст
+                FlatStyle = FlatStyle.Flat
+            };
+            btnThemeToggle.FlatAppearance.BorderSize = 0; // Ховаємо стандартну рамку
+
+            // Перемінна для відстеження, чи наведено курсор на кнопку
+            bool isHovered = false;
+
+            // Події для ефекту підсвічування при наведенні
+            btnThemeToggle.MouseEnter += (s, e) => { isHovered = true; btnThemeToggle.Invalidate(); };
+            btnThemeToggle.MouseLeave += (s, e) => { isHovered = false; btnThemeToggle.Invalidate(); };
+
+            // БЕРЕМО ІКОНКУ НАПРЯМУ З РЕСУРСІВ ПРОЕКТУ
+            Image themeIcon = Properties.Resources.day_night;
+
+            // Динамічне малювання
+            btnThemeToggle.Paint += (s, e) =>
+            {
+                // 1. Визначаємо колір фону (якщо миша наведена — робимо колір трохи світлішим/темнішим)
+                Color baseBgColor = btnThemeToggle.BackColor;
+                Color drawBgColor = baseBgColor;
+
+                if (isHovered)
+                {
+                    bool isDark = baseBgColor.R < 128;
+                    drawBgColor = isDark
+                        ? Color.FromArgb(baseBgColor.R + 25, baseBgColor.G + 25, baseBgColor.B + 25)
+                        : Color.FromArgb(baseBgColor.R - 20, baseBgColor.G - 20, baseBgColor.B - 20);
+                }
+
+                // Заливка фону кнопки
+                using (Brush backBrush = new SolidBrush(drawBgColor))
+                {
+                    e.Graphics.FillRectangle(backBrush, 0, 0, btnThemeToggle.Width, btnThemeToggle.Height);
+                }
+
+                // 2. Малювання іконки з автоматичним масштабуванням 100-200%
+                if (themeIcon != null)
+                {
+                    // Налаштування високої якості рендерингу зображення
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                    // Розраховуємо відступ 10%, як і в першій кнопці, для ідеального вигляду
+                    int paddingX = (int)(btnThemeToggle.Width * 0.10);
+                    int paddingY = (int)(btnThemeToggle.Height * 0.10);
+
+                    // Визначаємо область для малювання (автоматично масштабується під розміри кнопки)
+                    Rectangle destRect = new Rectangle(
+                        paddingX,
+                        paddingY,
+                        btnThemeToggle.Width - (paddingX * 2),
+                        btnThemeToggle.Height - (paddingY * 2)
+                    );
+
+                    e.Graphics.DrawImage(themeIcon, destRect);
+                }
+                else
+                {
+                    // Резервний варіант: якщо ресурс не знайдено, малюємо старий символ ◐
+                    using (Font fallbackFont = new Font("Segoe UI", btnThemeToggle.Height * 0.5f, FontStyle.Bold))
+                    using (Brush textBrush = new SolidBrush(btnThemeToggle.ForeColor))
+                    using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                    {
+                        e.Graphics.DrawString("\u25D0", fallbackFont, textBrush, new RectangleF(0, 0, btnThemeToggle.Width, btnThemeToggle.Height), sf);
+                    }
+                }
+            };
+
             btnThemeToggle.Click += (s, e) =>
             {
                 _settings.Theme = _settings.Theme == "Dark" ? "Light" : "Dark";
                 ApplyTheme();
                 if (infoTooltipForm != null && infoTooltipForm.Visible)
                 {
-                    infoTooltipForm.Close();                 // Закриваємо довідку при зміні теми
+                    infoTooltipForm.Close();
                 }
             };
-            MakeButtonRounded(btnThemeToggle, 6);
+            Controls.Add(btnThemeToggle);
 
-            btnOk = new Button { Location = new Point(250, 590), Size = new Size(100, 32), FlatStyle = FlatStyle.Flat };
-            btnCancel = new Button { Location = new Point(360, 590), Size = new Size(100, 32), FlatStyle = FlatStyle.Flat };
-            MakeButtonRounded(btnOk, 6);
-            MakeButtonRounded(btnCancel, 6);
+
+            btnOk = new Button { FlatStyle = FlatStyle.Flat };
+            btnCancel = new Button { FlatStyle = FlatStyle.Flat };
+
+            // --- ДОДАВАННЯ ГАРЯЧИХ КЛАВІШ ДЛЯ ГОЛОВНОГО ВІКНА ---
+            AcceptButton = btnOk;
+            CancelButton = btnCancel;
 
             // --- ЗАХИСТ ВІД КОНФЛІКТУ ГАЛОЧОК НА ЕТАПІ НАТИСКАННЯ ОК ---
             btnOk.Click += (s, e) =>
             {
-                // Якщо користувач активував обидва несумісні режими одночасно
                 if (chkMinimize.Checked && chkHideProgress.Checked)
                 {
                     string lang = cbLang.SelectedItem != null ? cbLang.SelectedItem.ToString() : _settings.Language;
-                    string warningText = Localization.Get(lang, "ConflictWarning\nProgress bar:\n2 checkboxes checked");
-                    DialogResult dialogResult = ShowCustomMessageBox(warningText, "fb2cng GUI", buttons: MessageBoxButtons.OK);
-                    return;                            // Блокуємо закриття вікна, поки користувач не виправить помилку
+                    string warningText = Localization.Get(lang, "WarningText");
+                    string warningTitle = Localization.Get(lang, "WarningTitle");
+                    _ = ShowCustomMessageBox(warningText, warningTitle, buttons: MessageBoxButtons.OK);
+                    return; // Блокуємо закриття вікна
                 }
 
                 SaveUiToSettings();
@@ -217,26 +540,246 @@ namespace fb2cng_GUI
             };
 
             btnCancel.Click += (s, e) => { Close(); };
-            Controls.AddRange(new Control[] { btnThemeToggle, btnOk, btnCancel });
+            Controls.AddRange(new Control[] { btnOk, btnCancel });
 
-            // Перехоплення переміщення головної форми для динамічного оновлення позиції вікна опису
             LocationChanged += (s, e) => { UpdateHelpWindowPosition(); };
+
+            // --- МАКСИМАЛЬНО КОМПАКТНИЙ ТА СИНХРОНІЗОВАНИЙ ВАРІАНТ ПОДІЇ LOAD ---
+            Load += (s, e) =>
+            {
+                // 1. Обчислюємо точний масштаб DPI монітора
+                float currentScale = Font.Height / 18f;
+
+                // 2. МАКСИМАЛЬНО ЩІЛЬНІ ВІДСТУПИ (Зменшено для повної компактності)
+                int blockMargin = (int)(8 * currentScale);       // Мінімізований простір МІЖ великими блоками
+                int labelToFieldSpace = (int)(2 * currentScale);  // Відступ від тексту до його поля
+
+                int labelHeight = (int)(20 * currentScale); // Трохи зменшили висоту напису
+                int fieldHeight = (int)(24 * currentScale); // Нова витончена висота полів (-4 пікселі) 
+                int checkBoxHeight = (int)(22 * currentScale);
+                int spaceBetweenCheckboxes = (int)(3 * currentScale);
+
+                //  ШИРИНА ПРОГРАМИ
+                // Базова внутрішня ширина тепер 380 замість 480. Форма стане витонченішою!
+                int calculatedWidth = (int)(380 * currentScale);
+                ClientSize = new Size(calculatedWidth, ClientSize.Height);
+
+                // Розраховуємо нові ідеально симетричні відступи від країв програми
+                int xLeft = (int)(15 * currentScale); // Тонкі акуратні бічні поля по 15 пікселів
+                int xRightField = ClientSize.Width - xLeft;
+                int fieldWidth = xRightField - xLeft;
+
+                // Верхня стартова точка (25 щоб не налазити на кнопку "інформація")
+                int startY = (int)(25 * currentScale);
+
+                // ==========================================
+                // БЛОК 1: Мова інтерфейсу
+                // ==========================================
+                lblLang.SetBounds(xLeft, startY, fieldWidth, labelHeight);
+
+                // КОРЕКЦІЯ: задаємо висоту елемента списку з вирахуванням 6 пікселів на системні рамки
+                cbLang.ItemHeight = fieldHeight - 6;
+                cbLang.SetBounds(xLeft, lblLang.Bottom + labelToFieldSpace, fieldWidth, fieldHeight);
+
+                // ==========================================
+                // БЛОК 2: Назва пункту контекстного меню (працює ідеально)
+                // ==========================================
+                lblMenu.SetBounds(xLeft, cbLang.Bottom + blockMargin, fieldWidth, labelHeight);
+                txtMenu.SetBounds(xLeft, lblMenu.Bottom + labelToFieldSpace, fieldWidth, fieldHeight);
+
+                // ==========================================
+                // БЛОК 3: Формат вихідного документа
+                // ==========================================
+                lblFormat.SetBounds(xLeft, txtMenu.Bottom + blockMargin, fieldWidth, labelHeight);
+
+                // КОРЕКЦІЯ: аналогічно задаємо ItemHeight для формату
+                cbFormat.ItemHeight = fieldHeight - 6;
+                cbFormat.SetBounds(xLeft, lblFormat.Bottom + labelToFieldSpace, fieldWidth, fieldHeight);
+
+                // ==========================================
+                // БЛОК 4: Папка для збереження результату
+                // ==========================================
+                chkFolder.SetBounds(xLeft, cbFormat.Bottom + blockMargin, fieldWidth, checkBoxHeight);
+
+                int browseBtnWidth = (int)(38 * currentScale);
+                int folderTxtWidth = fieldWidth - browseBtnWidth - (int)(8 * currentScale);
+
+                // КРИТИЧНЕ ВИПРАВЛЕННЯ: Створюємо TextBox з увімкненим Multiline прямо під час налаштування геометрії,
+                // це змусить його СУВОРО підкорятися висоті fieldHeight і не стискатися системою!
+                txtFolder.Multiline = true;
+                txtFolder.SetBounds(xLeft, chkFolder.Bottom + labelToFieldSpace, folderTxtWidth, fieldHeight);
+
+                // Тепер кнопка і поле мають абсолютно ОДНАКОВУ висоту fieldHeight і позицію Top,
+                // вони стануть ідеальними близнюками без жодних поправок та зміщень!
+                btnFolderBrowse.SetBounds(xRightField - browseBtnWidth, txtFolder.Top, browseBtnWidth, fieldHeight);
+
+                // ==========================================
+                // БЛОК 5: Конфігураційний файл (.yaml)
+                // ==========================================
+                chkConfig.SetBounds(xLeft, txtFolder.Bottom + blockMargin, fieldWidth, checkBoxHeight);
+
+                // Аналогічно вмикаємо Multiline для поля конфігу
+                txtConfig.Multiline = true;
+                txtConfig.SetBounds(xLeft, chkConfig.Bottom + labelToFieldSpace, folderTxtWidth, fieldHeight);
+
+                // Виставляємо кнопці конфігу ідентичні з полем координати та висоту
+                btnConfigBrowse.SetBounds(xRightField - browseBtnWidth, txtConfig.Top, browseBtnWidth, fieldHeight);
+
+                // ==========================================
+                // БЛОК 6: Опції автоматизації (Чекбокси)
+                // ==========================================
+                chkOverwrite.SetBounds(xLeft, txtConfig.Bottom + blockMargin, fieldWidth, checkBoxHeight);
+
+                chkDeleteMain.SetBounds(xLeft, chkOverwrite.Bottom + spaceBetweenCheckboxes, fieldWidth, checkBoxHeight);
+
+                int xSubLeft = (int)(38 * currentScale); // Зменшений зсув дерева ієрархії для компактності
+                chkDeleteSub.SetBounds(xSubLeft, chkDeleteMain.Bottom + spaceBetweenCheckboxes, xRightField - xSubLeft, checkBoxHeight);
+
+                chkMinimize.SetBounds(xLeft, chkDeleteSub.Bottom + spaceBetweenCheckboxes, fieldWidth, checkBoxHeight);
+
+                chkHideProgress.SetBounds(xSubLeft, chkMinimize.Bottom + spaceBetweenCheckboxes, xRightField - xSubLeft, checkBoxHeight);
+
+                // ==========================================
+                // БЛОК 7: КНОПКА ІНТЕГРАЦІЇ (КРИТИЧНЕ ВИПРАВЛЕННЯ ЧЕРЕЗ SETBOUNDS)
+                // ==========================================
+                // Використовуємо SetBounds БЕЗ початкового закруглення — це змусить кнопку 100% відмасштабуватися і стати на місце!
+                int integrateY = chkHideProgress.Bottom + blockMargin;
+                int integrateHeight = (int)(34 * currentScale);
+                btnIntegrate.SetBounds(xLeft, integrateY, fieldWidth, integrateHeight);
+
+                // ==========================================
+                // НИЖНЯ ПАНЕЛЬ УПРАВЛІННЯ (Тема, ОК, Скасувати)
+                // ==========================================
+                int finalButtonsY = btnIntegrate.Bottom + blockMargin + (int)(6 * currentScale);
+
+                btnThemeToggle.SetBounds(xLeft, finalButtonsY, (int)(40 * currentScale), (int)(30 * currentScale));
+
+                int btnWidth = (int)(95 * currentScale);  // Кнопки стали трішки компактнішими
+                int btnHeight = (int)(30 * currentScale);
+
+                btnCancel.SetBounds(xRightField - btnWidth, finalButtonsY, btnWidth, btnHeight);
+                btnOk.SetBounds(btnCancel.Left - btnWidth - (int)(8 * currentScale), finalButtonsY, btnWidth, btnHeight);
+
+                // КНОПКА ДОВІДКИ (i) — чітко у верхньому правому кутку
+                btnHelp.SetBounds(xRightField - (int)(30 * currentScale), (int)(8 * currentScale), (int)(30 * currentScale), (int)(30 * currentScale));
+
+                // =========================================================================
+                // ГАРАНТОВАНИЙ ПЕРЕЗАПУСК ЗАОКРУГЛЕННЯ (Строго після того, як ВСІ розміри змінено!)
+                // =========================================================================
+                MakeButtonRounded(btnFolderBrowse, 4);
+                MakeButtonRounded(btnConfigBrowse, 4);
+                MakeButtonRounded(btnHelp, 6);
+                MakeButtonRounded(btnThemeToggle, 6);
+                MakeButtonRounded(btnIntegrate, 6); // Закруглюємо велику кнопку строго ТУТ, коли її розмір вже ідеальний
+                MakeButtonRounded(btnOk, 6);
+                MakeButtonRounded(btnCancel, 6);
+
+                // ==========================================
+                // ФІНАЛЬНИЙ РОЗРАХУНОК ВЕРТИКАЛЬНОГО РОЗМІРУ ВІКНА
+                // ==========================================
+                paddingBottom = (int)(15 * currentScale); // Зменшили нижній пустий відступ
+                finalHeight = btnOk.Bottom + paddingBottom;
+
+                // Призначаємо фінальний, ультра-компактний розмір всієї форми
+                ClientSize = new Size(calculatedWidth, finalHeight);
+
+                // Повертаємо вікно ідеально по центру екрана монітора
+                CenterToScreen();
+            };
         }
         // Графічний метод створення закруглених кутів для кнопок через зміну їхнього регіону
         private void MakeButtonRounded(Button btn, int radius)
         {
-            btn.Paint += (s, e) =>
+            // Крок 1. Надійний Region (без змін)
+            using (GraphicsPath path = new GraphicsPath())
             {
-                Rectangle bounds = new Rectangle(0, 0, btn.Width, btn.Height);
-                using (GraphicsPath path = new GraphicsPath())
+                float r = radius;
+                path.AddArc(0, 0, r * 2, r * 2, 180, 90);
+                path.AddArc(btn.Width - (r * 2), 0, r * 2, r * 2, 270, 90);
+                path.AddArc(btn.Width - (r * 2), btn.Height - (r * 2), r * 2, r * 2, 0, 90);
+                path.AddArc(0, btn.Height - (r * 2), r * 2, r * 2, 90, 90);
+                path.CloseAllFigures();
+
+                btn.Region = new Region(path);
+            }
+
+            btn.FlatStyle = FlatStyle.Flat;
+            btn.FlatAppearance.BorderSize = 0;
+
+            // Крок 2. Малювання рамки з розширенням назовні для світлої теми
+            btn.Paint += (s, ev) =>
+            {
+                ev.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+                bool isDarkTheme = _settings.Theme == "Dark";
+
+                if (isDarkTheme)
                 {
-                    // Послідовно додаємо дуги для чотирьох кутів кнопки
-                    path.AddArc(bounds.X, bounds.Y, radius * 2, radius * 2, 180, 90);
-                    path.AddArc(bounds.X + bounds.Width - (radius * 2), bounds.Y, radius * 2, radius * 2, 270, 90);
-                    path.AddArc(bounds.X + bounds.Width - (radius * 2), bounds.Y + bounds.Height - (radius * 2), radius * 2, radius * 2, 0, 90);
-                    path.AddArc(bounds.X, bounds.Y + bounds.Height - (radius * 2), radius * 2, radius * 2, 90, 90);
-                    path.CloseAllFigures();
-                    btn.Region = new Region(path); // Призначаємо нову закруглену форму для кнопки
+                    // ДЛЯ ТЕМНОЇ ТЕМИ: ваш перевірений ідеальний варіант (залишаємо без змін)
+                    using (GraphicsPath buttonFramePath = new GraphicsPath())
+                    {
+                        float r = radius;
+                        float startXY = 0.5f;
+                        float sizeAdjustment = 1.0f;
+
+                        buttonFramePath.AddArc(startXY, startXY, r * 2, r * 2, 180, 90);
+                        buttonFramePath.AddArc(btn.Width - (r * 2) - sizeAdjustment, startXY, r * 2, r * 2, 270, 90);
+                        buttonFramePath.AddArc(btn.Width - (r * 2) - sizeAdjustment, btn.Height - (r * 2) - sizeAdjustment, r * 2, r * 2, 0, 90);
+                        buttonFramePath.AddArc(startXY, btn.Height - (r * 2) - sizeAdjustment, r * 2, r * 2, 90, 90);
+                        buttonFramePath.CloseAllFigures();
+
+                        Color btnBorderColor = btn.FlatAppearance.BorderColor != Color.Empty && btn.FlatAppearance.BorderColor != Color.Transparent
+                            ? btn.FlatAppearance.BorderColor : btn.ForeColor;
+
+                        using (Pen pen = new Pen(btnBorderColor, 1.2F))
+                        {
+                            ev.Graphics.DrawPath(pen, buttonFramePath);
+                        }
+                    }
+                }
+                else
+                {
+                    // ДЛЯ СВІТЛОЇ ТЕМИ: Розширюємо геометрію рамки назовні (startXY = 0)
+                    using (GraphicsPath buttonFramePath = new GraphicsPath())
+                    {
+                        float r = radius;
+                        float startXY = 0.0f; // Зміщуємо на самий край для розширення назовні
+                        float sizeAdjustment = 0.0f; // Прибираємо стискання рамки
+
+                        buttonFramePath.AddArc(startXY, startXY, r * 2, r * 2, 180, 90);
+                        buttonFramePath.AddArc(btn.Width - (r * 2) - sizeAdjustment, startXY, r * 2, r * 2, 270, 90);
+                        buttonFramePath.AddArc(btn.Width - (r * 2) - sizeAdjustment, btn.Height - (r * 2) - sizeAdjustment, r * 2, r * 2, 0, 90);
+                        buttonFramePath.AddArc(startXY, btn.Height - (r * 2) - sizeAdjustment, r * 2, r * 2, 90, 90);
+                        buttonFramePath.CloseAllFigures();
+
+                        if (btn.ForeColor == Color.White)
+                        {
+                            // СИНІ АКЦЕНТНІ КНОПКИ ("Інтегрувати" та "ОК"):
+                            // Шар 1: Товста підкладка кольору фону для зачистки бруду
+                            using (Pen bgPen = new Pen(btn.BackColor, 2.5F))
+                            {
+                                ev.Graphics.DrawPath(bgPen, buttonFramePath);
+                            }
+
+                            // Шар 2: Збільшуємо товщину світлої рамки до 2.2F, щоб вона м'яко вийшла назовні
+                            // Також трохи збільшили непрозорість (зі 140 до 160), щоб краще перекрити сині точки
+                            using (Pen overlayPen = new Pen(Color.FromArgb(160, Color.White), 2.2F))
+                            {
+                                ev.Graphics.DrawPath(overlayPen, buttonFramePath);
+                            }
+                        }
+                        else
+                        {
+                            // ЗВИЧАЙНІ КНОПКИ ("Тема", "Відмінити", "Довідка"):
+                            Color btnBorderColor = btn.FlatAppearance.BorderColor != Color.Empty && btn.FlatAppearance.BorderColor != Color.Transparent
+                                ? btn.FlatAppearance.BorderColor : Color.FromArgb(100, btn.ForeColor);
+
+                            using (Pen pen = new Pen(btnBorderColor, 2.0F)) // Збільшили до 2.0F для ідеального згладжування
+                            {
+                                ev.Graphics.DrawPath(pen, buttonFramePath);
+                            }
+                        }
+                    }
                 }
             };
         }
@@ -274,7 +817,7 @@ namespace fb2cng_GUI
                         b.ForeColor = Color.White;
                         b.FlatAppearance.BorderSize = 0;
                     }
-                    // Кнопка "?" має зберігати стиль звичайної кнопки або виділятися
+                    // Кнопка "і/?" має зберігати стиль звичайної кнопки або виділятися
                     else if (b == btnHelp)
                     {
                         b.BackColor = isDark ? Color.FromArgb(60, 60, 60) : Color.FromArgb(220, 220, 220);
@@ -292,7 +835,7 @@ namespace fb2cng_GUI
         }
 
         // --- ЛОГІКА ДЛЯ СТВОРЕННЯ, ПРИВ'ЯЗКИ ТА ЗАКРУГЛЕННЯ ВІКНА ОПИСУ ПРОГРАМИ ---
-        // Подія натискання на прямокутну кнопку зі знаком питання
+        // Подія натискання на прямокутну кнопку зі знаком питання (i)
         private void BtnHelp_Click(object sender, EventArgs e)
         {
             // Якщо вікно вже відкрите — закриваємо його при повторному натисканні
@@ -319,12 +862,76 @@ namespace fb2cng_GUI
                 BackColor = isDark ? Color.FromArgb(32, 32, 32) : Color.White
             };
 
-            // Гарантовано збільшений розмір вікна довідки, щоб вмістити весь текст без обрізання рядків
-            int calculatedWidth = Width / 2;
-            int calculatedHeight = 220;
-            infoTooltipForm.Size = new Size(calculatedWidth, calculatedHeight);
+            // Ширина становитиме 65% від ширини головного вікна
+            int calculatedWidth = (int)(Width * 0.65);
 
-            // ТЕПЕР КРАЇ ВІКНА-ДОВІДКИ ТЕЖ ЗАОКРУГЛЕНІ (в загальній стилістиці програми)
+            // --- 1. СТВОРЮЄМО ЗАГОЛОВОК ЯК ЗВИЧАЙНИЙ ЕЛЕМЕНТ (БЕЗ DOCK) ---
+            int titleHeight = 35; // Висота нашого кастомного заголовка
+            Label titleLabel = new Label
+            {
+                Text = helpTitle,
+                Location = new Point(0, 0),
+                Width = calculatedWidth,
+                Height = titleHeight,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(14, 0, 0, 0),
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = isDark ? Color.White : Color.Black,
+
+                // КОЛІР ФОНУ ТЕПЕР ЗБІГАЄТЬСЯ З КОЛЬОРОМ РАМКИ (ТЕМНИЙ АБО СВІТЛИЙ СІРИЙ)
+                BackColor = isDark ? Color.FromArgb(80, 80, 80) : Color.FromArgb(180, 180, 180)
+            };
+
+            // --- 2. СТВОРЮЄМО ТЕКСТОВИЙ БЛОК (ЗСУВАЄМО НА ВИСОТУ ЗАГОЛОВКА) ---
+            RichTextBox rtbHelp = new RichTextBox
+            {
+                Text = helpText,
+                Location = new Point(14, titleHeight + 7), // 7 пікселів відступу зверху
+                Width = calculatedWidth - 28, // Ширина тексту залежить від форми
+                ForeColor = isDark ? Color.White : Color.Black,
+                BackColor = infoTooltipForm.BackColor,
+                BorderStyle = BorderStyle.None,
+                ReadOnly = true,
+                ScrollBars = RichTextBoxScrollBars.None,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Regular),
+                TabStop = false
+            };
+
+            // ВИРІВНЮВАННЯ ПО ЦЕНТРУ: Виділяємо весь текст і задаємо йому центральне вирівнювання
+            rtbHelp.SelectAll();
+            rtbHelp.SelectionAlignment = HorizontalAlignment.Center;
+            rtbHelp.DeselectAll(); // Знімаємо виділення, щоб текст не підсвічувався синім кольором
+
+            // Забороняємо виділення тексту мишею та появу текстового курсору
+            rtbHelp.MouseDown += (s, ev) => { _ = Focus(); };
+
+            // Додаємо елементи на форму
+            infoTooltipForm.Controls.Add(titleLabel);
+            infoTooltipForm.Controls.Add(rtbHelp);
+
+            // --- ДИНАМІЧНИЙ РОЗРАХУНОК ВИСОТИ ВІКНА ДОВІДКИ ---
+            int lastCharIndex = rtbHelp.TextLength > 0 ? rtbHelp.TextLength - 1 : 0;
+            Point lastCharPos = rtbHelp.GetPositionFromCharIndex(lastCharIndex);
+            // Чиста висота тексту (+5px запас для нижніх хвостиків літер у, ц, щ, д)
+            int textHeight = lastCharPos.Y + rtbHelp.Font.Height + 5;
+
+            // Встановлюємо висоту елемента тексту
+            rtbHelp.Height = textHeight;
+
+            // Розраховуємо фінальну висоту форми (висота тексту + висота заголовка +  мінімальні відступи зверху та знизу)
+            int calculatedHeight = titleHeight + rtbHelp.Height + 12;
+
+            // Задаємо меншу мінімальну висоту, щоб форма могла бути компактнішою
+            if (calculatedHeight < 60)
+            {
+                calculatedHeight = 60;
+            }
+
+            // Призначаємо динамічні розміри формі
+            infoTooltipForm.Size = new Size(calculatedWidth, calculatedHeight);
+            // --------------------------------------------------
+
+            // ТЕПЕР КРАЇ ВІКНА-ДОВІДКИ ТЕЖ ЗАОКРУГЛЕНІ (Виконується після визначення точних розмірів)
             int windowRadius = 8; // Радіус закруглення кутів вікна
             using (GraphicsPath path = new GraphicsPath())
             {
@@ -336,7 +943,8 @@ namespace fb2cng_GUI
                 infoTooltipForm.Region = new Region(path); // Призначаємо закруглену форму вікну
             }
 
-            // Малюємо тонку рамку по контуру закругленого вікна, щоб воно гарно виділялося
+
+            // Малюємо рамку знизу та справа (з заходом на половину радіуса на незадіяних кутах)
             infoTooltipForm.Paint += (s, ev) =>
             {
                 ev.Graphics.SmoothingMode = SmoothingMode.AntiAlias; // Згладжування ліній
@@ -345,42 +953,63 @@ namespace fb2cng_GUI
                 {
                     using (GraphicsPath framePath = new GraphicsPath())
                     {
-                        framePath.AddArc(0, 0, windowRadius * 2, windowRadius * 2, 180, 90);
-                        framePath.AddArc(infoTooltipForm.Width - (windowRadius * 2), 0, windowRadius * 2, windowRadius * 2, 270, 90);
-                        framePath.AddArc(infoTooltipForm.Width - (windowRadius * 2), infoTooltipForm.Height - (windowRadius * 2), windowRadius * 2, windowRadius * 2, 0, 90);
-                        framePath.AddArc(0, infoTooltipForm.Height - (windowRadius * 2), windowRadius * 2, windowRadius * 2, 90, 90);
-                        framePath.CloseAllFigures();
+                        // 1. Починаємо на ПРАВОМУ ВЕРХНЬОМУ куті (заходимо на половину радіуса)
+                        // Починаємо вести лінію від середини верхнього закруглення вправо
+                        framePath.AddArc(
+                            infoTooltipForm.Width - (windowRadius * 2) - 1,
+                            0,
+                            windowRadius * 2,
+                            windowRadius * 2,
+                            270, 45 // Малюємо лише половину дуги (45 градусів замість 90)
+                        );
+
+                        // 2. Ведемо лінію вниз по ВСЬОМУ ПРАВОМУ КРАЮ форми
+                        framePath.AddLine(
+                            infoTooltipForm.Width - 1,
+                            windowRadius,
+                            infoTooltipForm.Width - 1,
+                            infoTooltipForm.Height - windowRadius
+                        );
+
+                        // 3. Огинаємо ПРАВИЙ НИЖНІЙ кут повністю (на всі 90 градусів)
+                        framePath.AddArc(
+                            infoTooltipForm.Width - (windowRadius * 2) - 1,
+                            infoTooltipForm.Height - (windowRadius * 2) - 1,
+                            windowRadius * 2,
+                            windowRadius * 2,
+                            0, 90
+                        );
+
+                        // 4. Ведемо лінію вліво по ВСЬОМУ НИЖНЬОМУ КРАЮ форми
+                        framePath.AddLine(
+                            infoTooltipForm.Width - windowRadius,
+                            infoTooltipForm.Height - 1,
+                            windowRadius,
+                            infoTooltipForm.Height - 1
+                        );
+
+                        // 5. Огинаємо ЛІВИЙ НИЖНІЙ кут повністю (на всі 90 градусів)
+                        framePath.AddArc(
+                            0,
+                            infoTooltipForm.Height - (windowRadius * 2) - 1,
+                            windowRadius * 2,
+                            windowRadius * 2,
+                            90, 90
+                        );
+
+                        // 6. Завершуємо шлях на ЛІВОМУ боці, піднявшись лише до середини кута (на висоту одного радіуса)
+                        framePath.AddLine(
+                            0,
+                            infoTooltipForm.Height - windowRadius,
+                            0,
+                            infoTooltipForm.Height - windowRadius
+                        );
+
+                        // Малюємо отриману Г-подібну рамку
                         ev.Graphics.DrawPath(pen, framePath);
                     }
                 }
             };
-
-            // Текстовий блок RichTextBox для відображення опису програми
-            RichTextBox rtbHelp = new RichTextBox
-            {
-                Text = helpText,
-                Location = new Point(14, 14),
-                Size = new Size(infoTooltipForm.Width - 28, infoTooltipForm.Height - 28),
-                ForeColor = isDark ? Color.White : Color.Black,
-                BackColor = infoTooltipForm.BackColor,
-                BorderStyle = BorderStyle.None,
-                ReadOnly = true,
-                ScrollBars = RichTextBoxScrollBars.None,
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Regular)
-            };
-
-            // ВИРІВНЮВАННЯ ПО ЦЕНТРУ: Виділяємо весь текст і задаємо йому центральне вирівнювання за вашим бажанням
-            rtbHelp.SelectAll();
-            rtbHelp.SelectionAlignment = HorizontalAlignment.Center;
-            rtbHelp.DeselectAll(); // Знімаємо виділення, щоб текст не підсвічувався синім кольором
-
-            // Забороняємо виділення тексту мишею та появу текстового курсору
-            rtbHelp.MouseDown += (s, ev) => { _ = Focus(); };
-            infoTooltipForm.Controls.Add(rtbHelp);
-
-            // Кліки по самому вікну або тексту також призведуть до його закриття
-            infoTooltipForm.Click += (s, ev) => { infoTooltipForm.Close(); };
-            rtbHelp.Click += (s, ev) => { infoTooltipForm.Close(); };
 
             // НАЙНАДІЙНІШИЙ СПОСІБ АВТОЗАКРИТТЯ: Як тільки користувач клікає БУДЬ-ДЕ поза цим вікном,
             // форма миттєво втрачає фокус (деактивується) і сама м'яко закривається в системі

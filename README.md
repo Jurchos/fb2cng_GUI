@@ -10,6 +10,12 @@ A graphical user interface (GUI) wrapper for the [fb2cng (fbc)](https://github.c
 * **User-Friendly Interface**: No more command-line typing; manage everything via a clean GUI.
 * **Flexible Configuration**: Easily adjust all conversion settings before processing.
 * **Quick Action**: Run the conversion tool smoothly from the drop-down menu interface.
+<details>
+<summary><b>Detailed Description </b></summary>
+<br>
+
+You can read the full, detailed overview of all features and capabilities in the [WhatIsIt.md](./WhatIsIt.md) file.
+</details>
 
 ## System Requirements
 * Windows OS

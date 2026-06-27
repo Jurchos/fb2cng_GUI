@@ -96,13 +96,25 @@ namespace fb2cng_GUI
                 {
                     string exePath = Application.ExecutablePath;
                     string[] pathsToRegister = new string[] {
-                        @"Software\Classes\.fb2\shell\" + txtMenu.Text,
-                        @"Software\Classes\fb2file\shell\" + txtMenu.Text,
-                        @"Software\Classes\SystemFileAssociations\.fb2\shell\" + txtMenu.Text,
-                        @"Software\Classes\Directory\shell\" + txtMenu.Text
-                    };
+                @"Software\Classes\.fb2\shell\" + txtMenu.Text,
+                @"Software\Classes\fb2file\shell\" + txtMenu.Text,
+                @"Software\Classes\SystemFileAssociations\.fb2\shell\" + txtMenu.Text,
+                @"Software\Classes\Directory\shell\" + txtMenu.Text,
+                // ДОДАНО: реєстрація для файлів .fb2.zip та стандартних .zip
+                @"Software\Classes\.fb2.zip\shell\" + txtMenu.Text,
+                @"Software\Classes\SystemFileAssociations\.fb2.zip\shell\" + txtMenu.Text,
+                @"Software\Classes\SystemFileAssociations\.zip\shell\" + txtMenu.Text
+            };
 
                     using (RegistryKey rootKey = Registry.CurrentUser.CreateSubKey(@"Software\Classes\.fb2")) { rootKey.SetValue("", "fb2file"); }
+
+                    // ДОДАНО: Створення типу файлу для .fb2.zip (щоб система точно знала, як його обробляти)
+                    using (RegistryKey rootZipKey = Registry.CurrentUser.CreateSubKey(@"Software\Classes\.fb2.zip")) { rootZipKey.SetValue("", "fb2zipfile"); }
+                    using (RegistryKey zipFileKey = Registry.CurrentUser.CreateSubKey(@"Software\Classes\fb2zipfile\shell\" + txtMenu.Text))
+                    {
+                        zipFileKey.SetValue("", txtMenu.Text);
+                        using (RegistryKey cmdKey = zipFileKey.CreateSubKey("command")) { cmdKey.SetValue("", "\"" + exePath + "\" \"%1\""); }
+                    }
 
                     foreach (string path in pathsToRegister)
                     {
@@ -117,13 +129,22 @@ namespace fb2cng_GUI
                 else
                 {
                     string[] pathsToDelete = new string[] {
-                        @"Software\Classes\.fb2\shell\" + _settings.MenuTitle,
-                        @"Software\Classes\fb2file\shell\" + _settings.MenuTitle,
-                        @"Software\Classes\SystemFileAssociations\.fb2\shell\" + _settings.MenuTitle,
-                        @"Software\Classes\Directory\shell\" + _settings.MenuTitle
-                    };
+                @"Software\Classes\.fb2\shell\" + _settings.MenuTitle,
+                @"Software\Classes\fb2file\shell\" + _settings.MenuTitle,
+                @"Software\Classes\SystemFileAssociations\.fb2\shell\" + _settings.MenuTitle,
+                @"Software\Classes\Directory\shell\" + _settings.MenuTitle,
+                // ДОДАНО: видалення ключів для .fb2.zip та .zip при деінтеграції
+                @"Software\Classes\.fb2.zip\shell\" + _settings.MenuTitle,
+                @"Software\Classes\fb2zipfile\shell\" + _settings.MenuTitle,
+                @"Software\Classes\SystemFileAssociations\.fb2.zip\shell\" + _settings.MenuTitle,
+                @"Software\Classes\SystemFileAssociations\.zip\shell\" + _settings.MenuTitle
+            };
 
                     foreach (string path in pathsToDelete) { Registry.CurrentUser.DeleteSubKeyTree(path, false); }
+
+                    // ДОДАНО: чистимо створений нами тип файлу fb2zipfile
+                    Registry.CurrentUser.DeleteSubKeyTree(@"Software\Classes\fb2zipfile", false);
+
                     _settings.IsIntegrated = false;
                 }
                 _settings.MenuTitle = txtMenu.Text;
@@ -133,7 +154,7 @@ namespace fb2cng_GUI
                 string currentLang = cbLang.SelectedItem != null ? cbLang.SelectedItem.ToString() : _settings.Language;
                 string successText = Localization.Get(currentLang, "Success");
 
-                DialogResult dialogResult = ShowCustomMessageBox(successText, "fb2cng GUI", MessageBoxButtons.OK);
+                DialogResult dialogResult = ShowCustomMessageBox(successText, "Reg.Changed", MessageBoxButtons.OK);
             }
             catch (Exception ex) { _ = ShowCustomMessageBox("Registry Error: " + ex.Message, "Error", MessageBoxButtons.OK); }
         }
@@ -149,7 +170,6 @@ namespace fb2cng_GUI
             {
                 bool isDark = _settings.Theme == "Dark";
                 msgForm.Text = caption;
-                msgForm.Size = new Size(360, 190);
                 msgForm.FormBorderStyle = FormBorderStyle.FixedDialog;
                 msgForm.MaximizeBox = false;
                 msgForm.MinimizeBox = false;
@@ -157,12 +177,26 @@ namespace fb2cng_GUI
                 msgForm.Font = new Font("Segoe UI", 10F);
                 msgForm.BackColor = isDark ? Color.FromArgb(24, 24, 24) : Color.FromArgb(245, 245, 245);
 
-                // Налаштування для розташування повідомлення
+                // --- 1. АВТОМАТИЧНЕ ВИЗНАЧЕННЯ МАСШТАБУ DPI ДЛЯ ВІКНА ПОДІЇ ---
+                // Вираховуємо коефіцієнт масштабування на основі висоти шрифту форми
+                float currentScale = msgForm.Font.Height / 18f;
+
+                // --- 2. МАСШТАБОВАНІ ВІДСТУПИ ТА РОЗМІРИ ---
+                int paddingTop = (int)(15 * currentScale);    // Відступ від верхнього краю до тексту
+                int paddingMiddle = (int)(10 * currentScale); // Відступ між текстом та кнопкою
+                int paddingBottom = (int)(10 * currentScale); // Відступ від кнопки до низу вікна
+                int buttonHeight = (int)(32 * currentScale);  // Адаптивна висота кнопки ОК
+                int buttonWidth = (int)(100 * currentScale);  // Адаптивна ширина кнопки ОК
+
+                // Масштабуємо загальну базову ширину вікна повідомлення (на 100% була 385)
+                int calculatedWidth = (int)(330 * currentScale);
+                msgForm.ClientSize = new Size(calculatedWidth, msgForm.ClientSize.Height);
+
+                // Налаштування для розташування повідомлення (Ширина тексту адаптується під форму)
                 RichTextBox rtbText = new RichTextBox
                 {
                     Text = text,
-                    Location = new Point(20, 20),  // Підняли напис вище (було 26)
-                    Size = new Size(305, 80),      // Трохи збільшили висоту (з 70 до 80), щоб текст точно не обрізався знизу
+                    Width = msgForm.ClientSize.Width - (int)(35 * currentScale), // Симетричні відступи з боків
                     ForeColor = isDark ? Color.White : Color.Black,
                     BackColor = msgForm.BackColor,
                     BorderStyle = BorderStyle.None,
@@ -178,11 +212,32 @@ namespace fb2cng_GUI
                 rtbText.DeselectAll();
 
                 // ПРИХОВУВАННЯ КУРСОРУ ПРИ ВЗАЄМОДІЇ З ТЕКСТОМ
-                rtbText.MouseDown += (s, e) => { HideCaret(rtbText.Handle); msgForm.Focus(); };
-                rtbText.GotFocus += (s, e) => { HideCaret(rtbText.Handle); };
+                rtbText.MouseDown += (s, e) => { _ = HideCaret(rtbText.Handle); _ = msgForm.Focus(); };
+                rtbText.GotFocus += (s, e) => { _ = HideCaret(rtbText.Handle); };
 
-                msgForm.Controls.Add(rtbText);
+                msgForm.Controls.Add(rtbText); // Додаємо на форму перед розрахунками
 
+                // --- 3. ДИНАМІЧНИЙ РОЗРАХУНОК ВИСОТИ ТЕКСТУ ПІД НОВИЙ DPI ---
+                // Дізнаємося реальну висоту відрендереного тексту в пікселях з урахуванням масштабу
+                int lastCharIndex = rtbText.TextLength > 0 ? rtbText.TextLength - 1 : 0;
+                Point lastCharPos = rtbText.GetPositionFromCharIndex(lastCharIndex);
+                int textHeight = lastCharPos.Y + rtbText.Font.Height + (int)(10 * currentScale);
+
+                // Задаємо мінімальну висоту текстової коробки під поточний масштаб
+                int minTextHeight = (int)(50 * currentScale);
+                if (textHeight < minTextHeight)
+                {
+                    textHeight = minTextHeight;
+                }
+                rtbText.Height = textHeight;
+
+                // Позиціонуємо RichTextBox рівно по центру форми з відступом paddingTop
+                rtbText.Location = new Point((msgForm.ClientSize.Width - rtbText.Width) / 2, paddingTop);
+
+                // Розраховуємо точну Y-координату для кнопки (завжди під текстом на відстані paddingMiddle)
+                int buttonsY = rtbText.Bottom + paddingMiddle;
+
+                // Налаштування стилів кнопок
                 Color btnBg = isDark ? Color.FromArgb(50, 50, 50) : Color.FromArgb(230, 230, 230);
                 Color btnTextCol = isDark ? Color.White : Color.Black;
                 Color accentBg = isDark ? Color.FromArgb(0, 102, 204) : Color.FromArgb(0, 120, 215);
@@ -190,22 +245,28 @@ namespace fb2cng_GUI
                 // Змінна для збереження кнопки, яка прийме на себе перший фокус
                 Button primaryButton = null;
 
+                buttonsY = rtbText.Bottom + paddingMiddle;
+
                 if (buttons == MessageBoxButtons.OK)
                 {
                     Button btnOkCustom = new Button
                     {
                         Text = "OK",
                         DialogResult = DialogResult.OK,
-                        Location = new Point(225, 105),
-                        Size = new Size(100, 32),
+                        Size = new Size(buttonWidth, buttonHeight),
                         FlatStyle = FlatStyle.Flat,
                         BackColor = accentBg,
                         ForeColor = Color.White,
-                        TabIndex = 0 // Робимо цю кнопку першою у черзі фокусування
+                        TabIndex = 0
                     };
                     btnOkCustom.FlatAppearance.BorderSize = 0;
                     MakeButtonRounded(btnOkCustom, 6);
+
+                    // Центруємо одну кнопку OK по горизонталі
+                    btnOkCustom.Location = new Point((msgForm.ClientSize.Width - btnOkCustom.Width) / 2, buttonsY);
+
                     msgForm.Controls.Add(btnOkCustom);
+                    msgForm.AcceptButton = btnOkCustom;
                     primaryButton = btnOkCustom;
                 }
                 else if (buttons == MessageBoxButtons.OKCancel)
@@ -214,12 +275,11 @@ namespace fb2cng_GUI
                     {
                         Text = Localization.Get(_settings.Language, "Ok"),
                         DialogResult = DialogResult.OK,
-                        Location = new Point(115, 105),
-                        Size = new Size(100, 32),
+                        Size = new Size(buttonWidth, buttonHeight),
                         FlatStyle = FlatStyle.Flat,
                         BackColor = accentBg,
                         ForeColor = Color.White,
-                        TabIndex = 0 // Робимо кнопку ОК першою у черзі фокусування
+                        TabIndex = 0
                     };
                     btnOkCustom.FlatAppearance.BorderSize = 0;
                     MakeButtonRounded(btnOkCustom, 6);
@@ -228,8 +288,7 @@ namespace fb2cng_GUI
                     {
                         Text = Localization.Get(_settings.Language, "Cancel"),
                         DialogResult = DialogResult.Cancel,
-                        Location = new Point(225, 105),
-                        Size = new Size(100, 32),
+                        Size = new Size(buttonWidth, buttonHeight),
                         FlatStyle = FlatStyle.Flat,
                         BackColor = btnBg,
                         ForeColor = btnTextCol,
@@ -238,23 +297,80 @@ namespace fb2cng_GUI
                     btnCancelCustom.FlatAppearance.BorderColor = isDark ? Color.FromArgb(80, 80, 80) : Color.FromArgb(200, 200, 200);
                     MakeButtonRounded(btnCancelCustom, 6);
 
+                    // Розподіляємо дві кнопки симетрично відносно центру форми
+                    int spacing = (int)(15 * currentScale);
+                    int totalButtonsWidth = btnOkCustom.Width + spacing + btnCancelCustom.Width;
+                    int startX = (msgForm.ClientSize.Width - totalButtonsWidth) / 2;
+
+                    btnOkCustom.Location = new Point(startX, buttonsY);
+                    btnCancelCustom.Location = new Point(startX + btnOkCustom.Width + spacing, buttonsY);
+
                     msgForm.Controls.AddRange(new Control[] { btnOkCustom, btnCancelCustom });
+                    msgForm.AcceptButton = btnOkCustom;
+                    msgForm.CancelButton = btnCancelCustom;
                     primaryButton = btnOkCustom;
                 }
 
                 msgForm.TopMost = true;
 
-                // ГАРАНТОВАНЕ ЗАБИРАННЯ ФОКУСУ ТА ПРИХОВУВАННЯ КУРСОРУ ПРИ ВІДКРИТТІ
+                // ФІНАЛЬНИЙ РОЗРАХУНОК ВЕРТИКАЛЬНОГО РОЗМІРУ ВІКНА
+                int finalHeight = paddingTop + rtbText.Height + paddingMiddle + buttonHeight + paddingBottom;
+                msgForm.ClientSize = new Size(calculatedWidth, finalHeight);
+
+                // Надійне WinAPI центрування динамічної форми msgForm на екрані монітора
+                var primaryScreen = Screen.FromControl(this).Bounds; // варіант з var краще ніж Rectangle
+                msgForm.Location = new Point(
+                    primaryScreen.Left + ((primaryScreen.Width - msgForm.Width) / 2),
+                    primaryScreen.Top + ((primaryScreen.Height - msgForm.Height) / 2)
+                );
+
+                // Налаштування поведінки вікна перед показом
+                msgForm.StartPosition = FormStartPosition.CenterScreen;
+                msgForm.TopMost = true;
+
+                // ГАРАНТОВАНЕ ЗАБИРАННЯ ФОКУСУ ЧЕРЕЗ СКЛЕЮВАННЯ ПОТОКІВ WINDOWS
                 msgForm.Shown += (s, e) =>
                 {
-                    // Примусово переводимо активність вікна на кнопку, а не на текст
+                    try
+                    {
+                        IntPtr msgFormHandle = msgForm.Handle;
+
+                        // 1. Отримуємо ID потоку вікна, яке зараз реально активне в Windows
+                        IntPtr foregroundWindowHandle = Program.GetForegroundWindow();
+                        uint foregroundThreadId = Program.GetWindowThreadProcessId(foregroundWindowHandle, IntPtr.Zero);
+
+                        // 2. Отримуємо ID потоку нашого поточного вікна з повідомленням
+                        uint currentThreadId = Program.GetCurrentThreadId();
+
+                        // 3. Якщо фокус у якоїсь іншої програми, тимчасово склеюємо потоки введення
+                        if (foregroundThreadId != currentThreadId && foregroundThreadId != 0)
+                        {
+                            _ = Program.AttachThreadInput(currentThreadId, foregroundThreadId, true);
+
+                            // Примусово виводимо вікно на передній план та активуємо
+                            _ = Program.SetForegroundWindow(msgFormHandle);
+                            _ = Program.SetActiveWindow(msgFormHandle);
+                            msgForm.Activate();
+
+                            // Відклеюємо потоки назад, щоб не порушувати роботу ОС
+                            _ = Program.AttachThreadInput(currentThreadId, foregroundThreadId, false);
+                        }
+                        else
+                        {
+                            // Якщо ми і так були активні, просто стандартно фокусуємо
+                            _ = Program.SetForegroundWindow(msgFormHandle);
+                            _ = Program.SetActiveWindow(msgFormHandle);
+                            msgForm.Activate();
+                        }
+                    }
+                    catch { }
+
+                    // 4. Передаємо фокус безпосередньо на головну кнопку форми
                     if (primaryButton != null)
                     {
                         _ = primaryButton.Focus();
                     }
 
-                    // Асинхронний виклик (BeginInvoke) наздоганяє та знищує каретку 
-                    // відразу після того, як ОС Windows завершить усі свої внутрішні рендери
                     _ = msgForm.BeginInvoke(new Action(() => { _ = HideCaret(rtbText.Handle); }));
                 };
 
