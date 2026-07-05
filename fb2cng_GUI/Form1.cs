@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace fb2cng_GUI
@@ -36,15 +37,23 @@ namespace fb2cng_GUI
         private int paddingBottom;
         private int finalHeight;
 
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        [DllImport("user32.dll")]
         [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
         private static extern bool SetForegroundWindow(IntPtr hWnd);
 
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        [DllImport("user32.dll")]
         private static extern IntPtr SetActiveWindow(IntPtr hWnd);
 
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        [DllImport("user32.dll")]
         private static extern bool FlashWindow(IntPtr hwnd, bool bInvert);
+
+        // --- ДОДАНО: Додаткові імпорти WinAPI для розгортання вікна при повторному запуску exe ---
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll")]
+        private static extern bool IsIconic(IntPtr hWnd);
+
 
         // Конструктор форми: завантажує дані та налаштовує зовнішній вигляд
         public Form1()
@@ -646,6 +655,52 @@ namespace fb2cng_GUI
             // --- МАКСИМАЛЬНО КОМПАКТНИЙ ТА СИНХРОНІЗОВАНИЙ ВАРІАНТ ПОДІЇ LOAD ---
             Load += (s, e) =>
             {
+                try
+                {
+                    Process current = Process.GetCurrentProcess();
+                    Process[] processes = Process.GetProcessesByName(current.ProcessName);
+
+                    if (processes.Length > 1) // Якщо в системі знайдено ще один такий процес
+                    {
+                        foreach (Process process in processes)
+                        {
+                            if (process.Id != current.Id)
+                            {
+                                IntPtr hWnd = process.MainWindowHandle;
+                                if (hWnd != IntPtr.Zero)
+                                {
+                                    // 1. Дістаємо старе вікно з панелі завдань (9 = SW_RESTORE)
+                                    if (IsIconic(hWnd))
+                                    {
+                                        _ = ShowWindow(hWnd, 9);
+                                    }
+
+                                    // 2. Склеюємо потоки, щоб вивести старе вікно на передній план
+                                    uint foregroundThreadId = Program.GetWindowThreadProcessId(Program.GetForegroundWindow(), IntPtr.Zero);
+                                    uint currentThreadId = Program.GetCurrentThreadId();
+
+                                    if (foregroundThreadId != currentThreadId && foregroundThreadId != 0)
+                                    {
+                                        _ = Program.AttachThreadInput(currentThreadId, foregroundThreadId, true);
+                                        _ = Program.SetForegroundWindow(hWnd);
+                                        _ = Program.SetActiveWindow(hWnd);
+                                        _ = Program.AttachThreadInput(currentThreadId, foregroundThreadId, false);
+                                    }
+                                    else
+                                    {
+                                        _ = Program.SetForegroundWindow(hWnd);
+                                        _ = Program.SetActiveWindow(hWnd);
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                        // 3. Закриваємо дублікат форми м'яко, через штатний механізм WinForms
+                        Close();
+                    }
+                }
+                catch { }
+
                 // 1. Обчислюємо точний масштаб DPI монітора
                 float currentScale = Font.Height / 18f;
 
@@ -749,7 +804,8 @@ namespace fb2cng_GUI
                 // ==========================================
                 // НИЖНЯ ПАНЕЛЬ УПРАВЛІННЯ (Тема, Конфігуратор, ОК, Скасувати)
                 // ==========================================
-                int finalButtonsY = btnIntegrate.Bottom + blockMargin + (int)(6 * currentScale);
+                // 1. Опускаємо кнопки нижче (збільшуємо відступ ЗВЕРХУ до кнопок з 6)
+                int finalButtonsY = btnIntegrate.Bottom + blockMargin + (int)(8 * currentScale);
 
                 // 1. Кнопка зміни теми (залишається зліва)
                 btnThemeToggle.SetBounds(xLeft, finalButtonsY, (int)(40 * currentScale), (int)(30 * currentScale));
@@ -782,7 +838,7 @@ namespace fb2cng_GUI
                 // ==========================================
                 // ФІНАЛЬНИЙ РОЗРАХУНОК ВЕРТИКАЛЬНОГО РОЗМІРУ ВІКНА
                 // ==========================================
-                paddingBottom = (int)(15 * currentScale); // Зменшили нижній пустий відступ
+                paddingBottom = (int)(13 * currentScale); // Зменшили нижній пустий відступ з 15
                 finalHeight = btnOk.Bottom + paddingBottom;
 
                 // Призначаємо фінальний, ультра-компактний розмір всієї форми

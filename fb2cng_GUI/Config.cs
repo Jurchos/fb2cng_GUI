@@ -185,7 +185,7 @@ namespace fb2cng_GUI
                 ["HideProg"] = "Hide progress bar window",
                 ["HelpTitle"] = "About Program",
                 ["HelpText"] = "A GUI wrapper for the fb2cng (fbc) converter to configure fb2 file conversion " +
-                "and add a converting option to the Windows context menu.\n\nCreated by Jurchos & Gemini\nVersion: 0.6"
+                "and add a converting option to the Windows context menu.\n\nCreated by Jurchos & Gemini\nVersion: 0.6.1"
             };
             Translations["English"] = en;
 
@@ -219,7 +219,7 @@ namespace fb2cng_GUI
                 ["HideProg"] = "Не показувати вікно прогресу",
                 ["HelpTitle"] = "Про програму",
                 ["HelpText"] = "Програма-оболонка конвертера fb2cng (fbc) для налаштування конвертації fb2-файлів " +
-                "з додаванням опції конвертування до контекстного меню Windows.\n\nСтворено: Jurchos & Gemini\nВерсія: 0.6"
+                "з додаванням опції конвертування до контекстного меню Windows.\n\nСтворено: Jurchos & Gemini\nВерсія: 0.6.1"
             };
             Translations["Українська"] = uk;
 
@@ -253,7 +253,7 @@ namespace fb2cng_GUI
                 ["HideProg"] = "Не показывать окно прогресса",
                 ["HelpTitle"] = "О программе",
                 ["HelpText"] = "Программа-оболочка конвертера fb2cng (fbc) для настройки конвертации fb2-файлов " +
-                "с добавлением опции конвертирования в контекстное меню Windows.\n\nСоздано: Jurchos & Gemini\nВерсия: 0.6"
+                "с добавлением опции конвертирования в контекстное меню Windows.\n\nСоздано: Jurchos & Gemini\nВерсия: 0.6.1"
             };
             Translations["Русский"] = ru;
         }
