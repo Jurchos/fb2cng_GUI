@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
+using System.IO;
 using System.Windows.Forms;
 
 namespace fb2cng_GUI
@@ -27,7 +29,7 @@ namespace fb2cng_GUI
 
         // Елементи інтерфейсу: кнопки дій та вибору файлів/папок (довідка, папка призначення,
         // конфігураційний файл, інтеграція, ОК, Відміна, перемикання теми)
-        private Button btnHelp, btnFolderBrowse, btnConfigBrowse, btnIntegrate, btnOk, btnCancel, btnThemeToggle;
+        private Button btnHelp, btnFolderBrowse, btnConfigBrowse, btnIntegrate, btnThemeToggle, btnOk, btnCancel, btnGui;
 
         // Форма для відображення спливаючого вікна з описом програми
         private Form infoTooltipForm;
@@ -514,7 +516,104 @@ namespace fb2cng_GUI
             };
             Controls.Add(btnThemeToggle);
 
+            // --- ДОДАТКОВА КНОПКА ДЛЯ ЗАПУСКУ fb2cng_Configurator ---
+            btnGui = new Button
+            {
+                Text = "", // Порожній текст, бо малюємо іконку
+                FlatStyle = FlatStyle.Flat
+            };
+            btnGui.FlatAppearance.BorderSize = 0; // Ховаємо стандартну рамку
 
+            // Змінна для відстеження, чи наведено курсор на кнопку конфігуратора
+            bool isGuiHovered = false;
+
+            // Події для ефекту підсвічування при наведенні
+            btnGui.MouseEnter += (s, e) => { isGuiHovered = true; btnGui.Invalidate(); };
+            btnGui.MouseLeave += (s, e) => { isGuiHovered = false; btnGui.Invalidate(); };
+
+            // БЕРЕМО ІКОНКУ НАПРЯМУ З РЕСУРСІВ ПРОЕКТУ
+            Image yamlIcon = Properties.Resources.icon_yaml;
+
+            // Динамічне малювання для кнопки конфігуратора
+            btnGui.Paint += (s, e) =>
+            {
+                // 1. Визначаємо колір фону з урахуванням наведення миші
+                Color baseBgColor = btnGui.BackColor;
+                Color drawBgColor = baseBgColor;
+
+                if (isGuiHovered)
+                {
+                    bool isDark = baseBgColor.R < 128;
+                    drawBgColor = isDark
+                        ? Color.FromArgb(baseBgColor.R + 25, baseBgColor.G + 25, baseBgColor.B + 25)
+                        : Color.FromArgb(baseBgColor.R - 20, baseBgColor.G - 20, baseBgColor.B - 20);
+                }
+
+                // Заливка фону кнопки
+                using (Brush backBrush = new SolidBrush(drawBgColor))
+                {
+                    e.Graphics.FillRectangle(backBrush, 0, 0, btnGui.Width, btnGui.Height);
+                }
+
+                // 2. Малювання іконки з автоматичним масштабуванням 100-200%
+                if (yamlIcon != null)
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                    // Розраховуємо відступ 10% для ідеального вигляду
+                    int paddingX = (int)(btnGui.Width * 0.10);
+                    int paddingY = (int)(btnGui.Height * 0.10);
+
+                    Rectangle destRect = new Rectangle(
+                        paddingX,
+                        paddingY,
+                        btnGui.Width - (paddingX * 2),
+                        btnGui.Height - (paddingY * 2)
+                    );
+
+                    e.Graphics.DrawImage(yamlIcon, destRect);
+                }
+                else
+                {
+                    // Резервний варіант: якщо ресурс не знайдено, пишемо текст "Yaml"
+                    using (Font fallbackFont = new Font("Segoe UI", btnGui.Height * 0.35f, FontStyle.Bold))
+                    using (Brush textBrush = new SolidBrush(btnGui.ForeColor))
+                    using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                    {
+                        e.Graphics.DrawString("Yaml", fallbackFont, textBrush, new RectangleF(0, 0, btnGui.Width, btnGui.Height), sf);
+                    }
+                }
+            };
+
+            // Подія кліку: запуск зовнішнього конфігуратора з перевіркою помилок та локалізацією
+            btnGui.Click += (s, e) =>
+            {
+                string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fb2cng_Configurator.exe");
+                if (File.Exists(exePath))
+                {
+                    try
+                    {
+                        _ = Process.Start(new ProcessStartInfo
+                        {
+                            FileName = exePath,
+                            UseShellExecute = true
+                        });
+                    }
+                    catch
+                    {
+                        ShowConfiguratorMissingError();
+                    }
+                }
+                else
+                {
+                    ShowConfiguratorMissingError();
+                }
+            };
+            Controls.Add(btnGui);
+
+            // --- КНОПКИ ОК ТА ВІДМІНИ ---
             btnOk = new Button { FlatStyle = FlatStyle.Flat };
             btnCancel = new Button { FlatStyle = FlatStyle.Flat };
 
@@ -648,11 +747,16 @@ namespace fb2cng_GUI
                 btnIntegrate.SetBounds(xLeft, integrateY, fieldWidth, integrateHeight);
 
                 // ==========================================
-                // НИЖНЯ ПАНЕЛЬ УПРАВЛІННЯ (Тема, ОК, Скасувати)
+                // НИЖНЯ ПАНЕЛЬ УПРАВЛІННЯ (Тема, Конфігуратор, ОК, Скасувати)
                 // ==========================================
                 int finalButtonsY = btnIntegrate.Bottom + blockMargin + (int)(6 * currentScale);
 
+                // 1. Кнопка зміни теми (залишається зліва)
                 btnThemeToggle.SetBounds(xLeft, finalButtonsY, (int)(40 * currentScale), (int)(30 * currentScale));
+
+                // 2. Нова кнопка "btnGui" для запуску ЯМЛ-конфігуратора (йде відразу після теми)
+                int spacingBetweenIcons = (int)(6 * currentScale); // Відступ між іконками теми та yaml
+                btnGui.SetBounds(btnThemeToggle.Right + spacingBetweenIcons, finalButtonsY, (int)(40 * currentScale), (int)(30 * currentScale));
 
                 int btnWidth = (int)(95 * currentScale);  // Кнопки стали трішки компактнішими
                 int btnHeight = (int)(30 * currentScale);
@@ -670,6 +774,7 @@ namespace fb2cng_GUI
                 MakeButtonRounded(btnConfigBrowse, 4);
                 MakeButtonRounded(btnHelp, 6);
                 MakeButtonRounded(btnThemeToggle, 6);
+                MakeButtonRounded(btnGui, 6); // <--- ДОДАНО: Закруглюємо нову кнопку конфігуратора на 6 пікселів
                 MakeButtonRounded(btnIntegrate, 6); // Закруглюємо велику кнопку строго ТУТ, коли її розмір вже ідеальний
                 MakeButtonRounded(btnOk, 6);
                 MakeButtonRounded(btnCancel, 6);
@@ -687,6 +792,17 @@ namespace fb2cng_GUI
                 CenterToScreen();
             };
         }
+
+        // Метод для відображення повідомлення про відсутність конфігуратора
+        private void ShowConfiguratorMissingError()
+        {
+            string lang = cbLang.SelectedItem != null ? cbLang.SelectedItem.ToString() : _settings.Language;
+            string missingTitle = Localization.Get(lang, "FbcMissingTitle");
+            string missingText = Localization.Get(lang, "GuiMissingText");
+            _ = ShowCustomMessageBox(missingText, missingTitle, buttons: MessageBoxButtons.OK);
+        }
+
+
         // Графічний метод створення закруглених кутів для кнопок через зміну їхнього регіону
         private void MakeButtonRounded(Button btn, int radius)
         {

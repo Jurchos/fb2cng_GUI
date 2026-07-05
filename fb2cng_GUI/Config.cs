@@ -170,7 +170,8 @@ namespace fb2cng_GUI
                 ["WarningTitle"] = "Configuration Error",
                 ["WarningText"] = "Conflict: Multiple progress window options selected simultaneously.",
                 ["FbcMissingTitle"] = "Component Missing",
-                ["FbcMissingText"] = "Converter program not found: please verify that fbc.exe is present in the application folder.",
+                ["FbcMissingText"] = "Converter program not found: please verify that fbc.exe is present in the application folder!",
+                ["GuiMissingText"] = "Configurator program not found: please verify that 'fb2cng_Configurator.exe' is present in the application folder!",
                 ["YamlBrokenTitle"] = "Conversion failed",
                 ["YamlBrokenText"] = "Possible causes of the problem:\n1. Invalid configuration file (.yaml)" +
                                                                     "\n2. Target file already exists (overwrite is disabled)" +
@@ -184,7 +185,7 @@ namespace fb2cng_GUI
                 ["HideProg"] = "Hide progress bar window",
                 ["HelpTitle"] = "About Program",
                 ["HelpText"] = "A GUI wrapper for the fb2cng (fbc) converter to configure fb2 file conversion " +
-                "and add a converting option to the Windows context menu.\n\nCreated by Jurchos & Gemini\nVersion: 0.5.8"
+                "and add a converting option to the Windows context menu.\n\nCreated by Jurchos & Gemini\nVersion: 0.6"
             };
             Translations["English"] = en;
 
@@ -203,7 +204,8 @@ namespace fb2cng_GUI
                 ["WarningTitle"] = "Помилка конфігурації",
                 ["WarningText"] = "Одночасно встановлено 2 галочки для вікна прогресу",
                 ["FbcMissingTitle"] = "Відсутній компонент",
-                ["FbcMissingText"] = "Відсутня програма-конвертор: перевірте наявність файлу fbc.exe в папці з програмою.",
+                ["FbcMissingText"] = "Відсутня програма-конвертор: перевірте наявність файлу fbc.exe в папці з програмою!",
+                ["GuiMissingText"] = "Відсутня програма-конфігуратор: перевірте наявність файлу 'fb2cng_Configurator.exe' в папці з програмою!",
                 ["YamlBrokenTitle"] = "Збій конвертації",
                 ["YamlBrokenText"] = "Можливі причини проблеми:\n1. Некоректний файл налаштувань (.yaml)" +
                                                               "\n2. Цільовий файл вже існує (вимкнено перезапис)" +
@@ -217,7 +219,7 @@ namespace fb2cng_GUI
                 ["HideProg"] = "Не показувати вікно прогресу",
                 ["HelpTitle"] = "Про програму",
                 ["HelpText"] = "Програма-оболонка конвертера fb2cng (fbc) для налаштування конвертації fb2-файлів " +
-                "з додаванням опції конвертування до контекстного меню Windows.\n\nСтворено: Jurchos & Gemini\nВерсія: 0.5.8"
+                "з додаванням опції конвертування до контекстного меню Windows.\n\nСтворено: Jurchos & Gemini\nВерсія: 0.6"
             };
             Translations["Українська"] = uk;
 
@@ -236,7 +238,8 @@ namespace fb2cng_GUI
                 ["WarningTitle"] = "Ошибка конфигурации",
                 ["WarningText"] = "Конфликт настроек: одновременно выбраны два варианта окна прогресса",
                 ["FbcMissingTitle"] = "Отсутствует компонент",
-                ["FbcMissingText"] = "Программа-конвертер не найдена: проверьте наличие файла fbc.exe в папке с программой.",
+                ["FbcMissingText"] = "Программа-конвертер не найдена: проверьте наличие файла fbc.exe в папке с программой!",
+                ["GuiMissingText"] = "Программа-конфигуратор не найдена: проверьте наличие файла 'fb2cng_Configurator.exe' в папке с программой!",
                 ["YamlBrokenTitle"] = "Сбой конвертации",
                 ["YamlBrokenText"] = "Возможные причины проблемы:\n1. Некорректный файл настроек (.yaml)" +
                                                                          "\n2. Целевой файл уже существует (перезапись отключена)" +
@@ -250,7 +253,7 @@ namespace fb2cng_GUI
                 ["HideProg"] = "Не показывать окно прогресса",
                 ["HelpTitle"] = "О программе",
                 ["HelpText"] = "Программа-оболочка конвертера fb2cng (fbc) для настройки конвертации fb2-файлов " +
-                "с добавлением опции конвертирования в контекстное меню Windows.\n\nСоздано: Jurchos & Gemini\nВерсия: 0.5.8"
+                "с добавлением опции конвертирования в контекстное меню Windows.\n\nСоздано: Jurchos & Gemini\nВерсия: 0.6"
             };
             Translations["Русский"] = ru;
         }
