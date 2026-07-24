@@ -1,7 +1,4 @@
 ﻿using Microsoft.Win32;
-using System;
-using System.Drawing;
-using System.Windows.Forms;
 
 namespace fb2cng_GUI
 {
@@ -38,8 +35,8 @@ namespace fb2cng_GUI
         // Зчитування значень з елементів форми для їхнього подальшого збереження у файл
         private void SaveUiToSettings()
         {
-            _settings.Language = cbLang.SelectedItem != null ? cbLang.SelectedItem.ToString() : "English";
-            _settings.Format = cbFormat.SelectedItem != null ? cbFormat.SelectedItem.ToString() : "EPUB2";
+            _settings.Language = cbLang.SelectedItem?.ToString() ?? "English";
+            _settings.Format = cbFormat.SelectedItem?.ToString() ?? "EPUB2";
             _settings.UseCustomFolder = chkFolder.Checked;
             _settings.CustomFolder = txtFolder.Text;
             _settings.UseCustomConfig = chkConfig.Checked;
@@ -58,7 +55,7 @@ namespace fb2cng_GUI
         // Динамічний переклад написів інтерфейсу програми на вибрану мову
         private void ApplyLocalization()
         {
-            string lang = cbLang.SelectedItem != null ? cbLang.SelectedItem.ToString() : _settings.Language;
+            string lang = cbLang.SelectedItem?.ToString() ?? _settings.Language;
             lblLang.Text = Localization.Get(lang, "Lang");
             lblFormat.Text = Localization.Get(lang, "Format");
             chkFolder.Text = Localization.Get(lang, "Folder");
@@ -79,11 +76,11 @@ namespace fb2cng_GUI
         // Оновлення напису на кнопці роботи з реєстром Windows (Інтегрувати/Деінтегрувати)
         private void UpdateIntegrateButtonText()
         {
-            string lang = cbLang.SelectedItem != null ? cbLang.SelectedItem.ToString() : _settings.Language;
+            string lang = cbLang.SelectedItem?.ToString() ?? _settings.Language;
             btnIntegrate.Text = _settings.IsIntegrated ? Localization.Get(lang, "Deintegrate") : Localization.Get(lang, "Integrate");
         }
         // Логіка реєстрації програми в контекстному меню Windows
-        private void BtnIntegrate_Click(object sender, EventArgs e)
+        private void BtnIntegrate_Click(object? sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtMenu.Text))
             {
@@ -151,7 +148,7 @@ namespace fb2cng_GUI
                 _settings.Save();
                 UpdateIntegrateButtonText();
 
-                string currentLang = cbLang.SelectedItem != null ? cbLang.SelectedItem.ToString() : _settings.Language;
+                string currentLang = cbLang.SelectedItem?.ToString() ?? _settings.Language;
                 string successText = Localization.Get(currentLang, "Success");
 
                 DialogResult dialogResult = ShowCustomMessageBox(successText, "Reg.Changed", MessageBoxButtons.OK);
@@ -243,13 +240,13 @@ namespace fb2cng_GUI
                 Color accentBg = isDark ? Color.FromArgb(0, 102, 204) : Color.FromArgb(0, 120, 215);
 
                 // Змінна для збереження кнопки, яка прийме на себе перший фокус
-                Button primaryButton = null;
+                Button? primaryButton = null;
 
                 buttonsY = rtbText.Bottom + paddingMiddle;
 
                 if (buttons == MessageBoxButtons.OK)
                 {
-                    Button btnOkCustom = new Button
+                    Button btnOkCustom = new()
                     {
                         Text = "OK",
                         DialogResult = DialogResult.OK,

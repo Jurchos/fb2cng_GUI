@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 
 namespace fb2cng_GUI
 {
@@ -40,111 +41,45 @@ namespace fb2cng_GUI
             OverwriteExisting = false;
         }
 
-        private static readonly string ConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "gui_config.txt");
+        private static readonly string ConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "GUI_config.json");
 
         public static AppSettings Load()
         {
-            AppSettings settings = new AppSettings();
             if (!File.Exists(ConfigPath))
             {
-                return settings;
+                return new AppSettings();
             }
+
             try
             {
-                string[] lines = File.ReadAllLines(ConfigPath);
-                foreach (string line in lines)
-                {
-                    string[] parts = line.Split(new char[] { '=' }, 2);
-                    if (parts.Length < 2)
-                    {
-                        continue;
-                    }
-
-                    string key = parts[0].Trim();
-                    string val = parts[1].Trim();
-
-                    if (key == "Language")
-                    {
-                        settings.Language = val;
-                    }
-                    else if (key == "Format")
-                    {
-                        settings.Format = val;
-                    }
-                    else if (key == "UseCustomFolder")
-                    {
-                        settings.UseCustomFolder = bool.Parse(val);
-                    }
-                    else if (key == "CustomFolder")
-                    {
-                        settings.CustomFolder = val;
-                    }
-                    else if (key == "UseCustomConfig")
-                    {
-                        settings.UseCustomConfig = bool.Parse(val);
-                    }
-                    else if (key == "CustomConfig")
-                    {
-                        settings.CustomConfig = val;
-                    }
-                    else if (key == "MenuTitle")
-                    {
-                        settings.MenuTitle = val;
-                    }
-                    else if (key == "IsIntegrated")
-                    {
-                        settings.IsIntegrated = bool.Parse(val);
-                    }
-                    else if (key == "Theme")
-                    {
-                        settings.Theme = val;
-                    }
-                    else if (key == "DeleteAfterConvert")
-                    {
-                        settings.DeleteAfterConvert = bool.Parse(val);
-                    }
-                    else if (key == "AutoDeleteToRecycle")
-                    {
-                        settings.AutoDeleteToRecycle = bool.Parse(val);
-                    }
-                    else if (key == "StartMinimized")
-                    {
-                        settings.StartMinimized = bool.Parse(val);
-                    }
-                    else if (key == "HideProgress")
-                    {
-                        settings.HideProgress = bool.Parse(val);
-                    }
-                    else if (key == "OverwriteExisting")
-                    {
-                        settings.OverwriteExisting = bool.Parse(val);
-                    }
-                }
+                string jsonString = File.ReadAllText(ConfigPath);
+                // Десеріалізація JSON у об'єкт
+                return JsonSerializer.Deserialize<AppSettings>(jsonString) ?? new AppSettings();
             }
-            catch { }
-            return settings;
+            catch
+            {
+                return new AppSettings(); // Якщо файл пошкоджений - повертаємо дефолт
+            }
         }
 
         public void Save()
         {
-            List<string> lines = new List<string>
+            try
             {
-                "Language=" + Language,
-                "Format=" + Format,
-                "UseCustomFolder=" + UseCustomFolder.ToString(),
-                "CustomFolder=" + CustomFolder,
-                "UseCustomConfig=" + UseCustomConfig.ToString(),
-                "CustomConfig=" + CustomConfig,
-                "MenuTitle=" + MenuTitle,
-                "IsIntegrated=" + IsIntegrated.ToString(),
-                "Theme=" + Theme,
-                "DeleteAfterConvert=" + DeleteAfterConvert.ToString(),
-                "AutoDeleteToRecycle=" + AutoDeleteToRecycle.ToString(),
-                "StartMinimized=" + StartMinimized.ToString(),
-                "HideProgress=" + HideProgress.ToString(),
-                "OverwriteExisting=" + OverwriteExisting.ToString()
-            };
-            File.WriteAllLines(ConfigPath, lines.ToArray());
+                // Створюємо папку Data, якщо її немає
+                string directory = Path.GetDirectoryName(ConfigPath);
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                // Налаштування для гарного вигляду JSON (з відступами)
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                string jsonString = JsonSerializer.Serialize(this, options);
+
+                File.WriteAllText(ConfigPath, jsonString);
+            }
+            catch { }
         }
     }
 
@@ -171,7 +106,6 @@ namespace fb2cng_GUI
                 ["WarningText"] = "Conflict: Multiple progress window options selected simultaneously.",
                 ["FbcMissingTitle"] = "Component Missing",
                 ["FbcMissingText"] = "Converter program not found: please verify that fbc.exe is present in the application folder!",
-                ["GuiMissingText"] = "Configurator program not found: please verify that 'fb2cng_Configurator.exe' is present in the application folder!",
                 ["YamlBrokenTitle"] = "Conversion failed",
                 ["YamlBrokenText"] = "Possible causes of the problem:\n1. Invalid configuration file (.yaml)" +
                                                                     "\n2. Target file already exists (overwrite is disabled)" +
@@ -205,7 +139,6 @@ namespace fb2cng_GUI
                 ["WarningText"] = "Одночасно встановлено 2 галочки для вікна прогресу",
                 ["FbcMissingTitle"] = "Відсутній компонент",
                 ["FbcMissingText"] = "Відсутня програма-конвертор: перевірте наявність файлу fbc.exe в папці з програмою!",
-                ["GuiMissingText"] = "Відсутня програма-конфігуратор: перевірте наявність файлу 'fb2cng_Configurator.exe' в папці з програмою!",
                 ["YamlBrokenTitle"] = "Збій конвертації",
                 ["YamlBrokenText"] = "Можливі причини проблеми:\n1. Некоректний файл налаштувань (.yaml)" +
                                                               "\n2. Цільовий файл вже існує (вимкнено перезапис)" +
@@ -239,7 +172,6 @@ namespace fb2cng_GUI
                 ["WarningText"] = "Конфликт настроек: одновременно выбраны два варианта окна прогресса",
                 ["FbcMissingTitle"] = "Отсутствует компонент",
                 ["FbcMissingText"] = "Программа-конвертер не найдена: проверьте наличие файла fbc.exe в папке с программой!",
-                ["GuiMissingText"] = "Программа-конфигуратор не найдена: проверьте наличие файла 'fb2cng_Configurator.exe' в папке с программой!",
                 ["YamlBrokenTitle"] = "Сбой конвертации",
                 ["YamlBrokenText"] = "Возможные причины проблемы:\n1. Некорректный файл настроек (.yaml)" +
                                                                          "\n2. Целевой файл уже существует (перезапись отключена)" +

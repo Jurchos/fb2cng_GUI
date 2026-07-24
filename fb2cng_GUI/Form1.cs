@@ -16,29 +16,47 @@ namespace fb2cng_GUI
         private readonly AppSettings _settings;
 
         // Елементи інтерфейсу: текстові підписи
-        private Label lblLang, lblFormat, lblMenu;
+        private Label lblLang = null!;
+        private Label lblFormat = null!;
+        private Label lblMenu = null!;
 
         // Елементи інтерфейсу: випадаючі списки
-        private ComboBox cbLang, cbFormat;
+        private ComboBox cbLang = null!; 
+        private ComboBox cbFormat = null!;
 
         // Елементи інтерфейсу: прапорці (чекбокси) - папка призначення, конфігурація, перезапис,
         // видалити з підтвердженням, видалити в корзину, мінімізувати прогрес бар, приховати прогрес бар
-        private CheckBox chkFolder, chkConfig, chkOverwrite, chkDeleteMain, chkDeleteSub, chkMinimize, chkHideProgress;
+        private CheckBox chkFolder = null!;
+        private CheckBox chkConfig = null!;
+        private CheckBox chkOverwrite = null!;
+        private CheckBox chkDeleteMain = null!;
+        private CheckBox chkDeleteSub = null!;
+        private CheckBox chkMinimize = null!;
+        private CheckBox chkHideProgress = null!;
 
         // Елементи інтерфейсу: текстові поля
-        private TextBox txtFolder, txtConfig, txtMenu;
+        private TextBox txtFolder = null!;
+        private TextBox txtConfig = null!;
+        private TextBox txtMenu = null!;
 
         // Елементи інтерфейсу: кнопки дій та вибору файлів/папок (довідка, папка призначення,
         // конфігураційний файл, інтеграція, ОК, Відміна, перемикання теми)
-        private Button btnHelp, btnFolderBrowse, btnConfigBrowse, btnIntegrate, btnThemeToggle, btnOk, btnCancel, btnGui;
+        private Button btnHelp = null!;
+        private Button btnFolderBrowse = null!;
+        private Button btnConfigBrowse = null!;
+        private Button btnIntegrate = null!;
+        private Button btnThemeToggle = null!;
+        private Button btnOk = null!;
+        private Button btnCancel = null!;
+        private Button btnGui = null!;
 
         // Форма для відображення спливаючого вікна з описом програми
-        private Form infoTooltipForm;
+        private Form infoTooltipForm = null!;
         private int paddingBottom;
         private int finalHeight;
 
         [DllImport("user32.dll")]
-        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+        [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool SetForegroundWindow(IntPtr hWnd);
 
         [DllImport("user32.dll")]
@@ -180,7 +198,22 @@ namespace fb2cng_GUI
                     return;
                 }
                 e.DrawBackground();
-                TextRenderer.DrawText(e.Graphics, cbLang.Items[e.Index].ToString(), cbLang.Font, e.Bounds, cbLang.ForeColor, TextFormatFlags.VerticalCenter);
+                // 1. Отримуємо текст безпечно (використовуємо ?. та ??)
+                string itemText = cbLang.Items[e.Index]?.ToString() ?? string.Empty;
+
+                // 2. Отримуємо шрифт безпечно (якщо раптом Font = null, беремо стандартний шрифт системи)
+                Font drawFont = cbLang.Font ?? SystemFonts.DefaultFont;
+
+                // 3. Малюємо текст
+                TextRenderer.DrawText(
+                    e.Graphics,
+                    itemText,
+                    drawFont,
+                    e.Bounds,
+                    cbLang.ForeColor,
+                    TextFormatFlags.VerticalCenter
+                );
+
                 e.DrawFocusRectangle();
             };
             cbLang.Items.AddRange(new object[] { "English", "Українська", "Русский" });
@@ -211,7 +244,22 @@ namespace fb2cng_GUI
                     return;
                 }
                 e.DrawBackground();
-                TextRenderer.DrawText(e.Graphics, cbFormat.Items[e.Index].ToString(), cbFormat.Font, e.Bounds, cbFormat.ForeColor, TextFormatFlags.VerticalCenter);
+                // 1. Безпечно отримуємо текст елемента
+                string itemText = cbFormat.Items[e.Index]?.ToString() ?? string.Empty;
+
+                // 2. Безпечно отримуємо шрифт (з резервним системним шрифтом)
+                Font drawFont = cbFormat.Font ?? SystemFonts.DefaultFont;
+
+                // 3. Малюємо текст за допомогою TextRenderer
+                TextRenderer.DrawText(
+                    e.Graphics,
+                    itemText,
+                    drawFont,
+                    e.Bounds,
+                    cbFormat.ForeColor,
+                    TextFormatFlags.VerticalCenter
+                );
+
                 e.DrawFocusRectangle();
             };
             cbFormat.Items.AddRange(new object[] { "EPUB2", "KEPUB", "EPUB3", "AZW8", "KFX", "PDF", "TXT", "MD" });
@@ -531,20 +579,23 @@ namespace fb2cng_GUI
                 Text = "", // Порожній текст, бо малюємо іконку
                 FlatStyle = FlatStyle.Flat
             };
-            btnGui.FlatAppearance.BorderSize = 0; // Ховаємо стандартну рамку
+            // Перевіряємо наявність EXE файлу
+            string configuratorPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fb2cng_Configurator.exe");
+            bool isConfiguratorPresent = File.Exists(configuratorPath);
 
-            // Змінна для відстеження, чи наведено курсор на кнопку конфігуратора
+            // Кнопка видима лише якщо файл існує
+            btnGui.Visible = isConfiguratorPresent;
+            btnGui.FlatAppearance.BorderSize = 0;
+
+            // Малювання іконки залишаємо як було (воно спрацює лише якщо Visible = true)
             bool isGuiHovered = false;
-
-            // Події для ефекту підсвічування при наведенні
             btnGui.MouseEnter += (s, e) => { isGuiHovered = true; btnGui.Invalidate(); };
             btnGui.MouseLeave += (s, e) => { isGuiHovered = false; btnGui.Invalidate(); };
 
-            // БЕРЕМО ІКОНКУ НАПРЯМУ З РЕСУРСІВ ПРОЕКТУ
             Image yamlIcon = Properties.Resources.icon_yaml;
 
-            // Динамічне малювання для кнопки конфігуратора
-            btnGui.Paint += (s, e) =>
+                // Динамічне малювання для кнопки конфігуратора
+                btnGui.Paint += (s, e) =>
             {
                 // 1. Визначаємо колір фону з урахуванням наведення миші
                 Color baseBgColor = btnGui.BackColor;
@@ -599,26 +650,15 @@ namespace fb2cng_GUI
             // Подія кліку: запуск зовнішнього конфігуратора з перевіркою помилок та локалізацією
             btnGui.Click += (s, e) =>
             {
-                string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fb2cng_Configurator.exe");
-                if (File.Exists(exePath))
+                try
                 {
-                    try
+                    _ = Process.Start(new ProcessStartInfo
                     {
-                        _ = Process.Start(new ProcessStartInfo
-                        {
-                            FileName = exePath,
-                            UseShellExecute = true
-                        });
-                    }
-                    catch
-                    {
-                        ShowConfiguratorMissingError();
-                    }
+                        FileName = configuratorPath,
+                        UseShellExecute = true
+                    });
                 }
-                else
-                {
-                    ShowConfiguratorMissingError();
-                }
+                catch { /* Тихо ігноруємо, якщо запуск не вдався */ }
             };
             Controls.Add(btnGui);
 
@@ -635,7 +675,7 @@ namespace fb2cng_GUI
             {
                 if (chkMinimize.Checked && chkHideProgress.Checked)
                 {
-                    string lang = cbLang.SelectedItem != null ? cbLang.SelectedItem.ToString() : _settings.Language;
+                    string lang = cbLang.SelectedItem?.ToString() ?? _settings.Language;
                     string warningText = Localization.Get(lang, "WarningText");
                     string warningTitle = Localization.Get(lang, "WarningTitle");
                     _ = ShowCustomMessageBox(warningText, warningTitle, buttons: MessageBoxButtons.OK);
@@ -849,16 +889,6 @@ namespace fb2cng_GUI
             };
         }
 
-        // Метод для відображення повідомлення про відсутність конфігуратора
-        private void ShowConfiguratorMissingError()
-        {
-            string lang = cbLang.SelectedItem != null ? cbLang.SelectedItem.ToString() : _settings.Language;
-            string missingTitle = Localization.Get(lang, "FbcMissingTitle");
-            string missingText = Localization.Get(lang, "GuiMissingText");
-            _ = ShowCustomMessageBox(missingText, missingTitle, buttons: MessageBoxButtons.OK);
-        }
-
-
         // Графічний метод створення закруглених кутів для кнопок через зміну їхнього регіону
         private void MakeButtonRounded(Button btn, int radius)
         {
@@ -1008,7 +1038,7 @@ namespace fb2cng_GUI
 
         // --- ЛОГІКА ДЛЯ СТВОРЕННЯ, ПРИВ'ЯЗКИ ТА ЗАКРУГЛЕННЯ ВІКНА ОПИСУ ПРОГРАМИ ---
         // Подія натискання на прямокутну кнопку зі знаком питання (i)
-        private void BtnHelp_Click(object sender, EventArgs e)
+        private void BtnHelp_Click(object? sender, EventArgs e)
         {
             // Якщо вікно вже відкрите — закриваємо його при повторному натисканні
             if (infoTooltipForm != null && !infoTooltipForm.IsDisposed && infoTooltipForm.Visible)
@@ -1018,7 +1048,7 @@ namespace fb2cng_GUI
             }
 
             // Визначаємо поточну мову та завантажуємо локалізовані тексти
-            string lang = cbLang.SelectedItem != null ? cbLang.SelectedItem.ToString() : _settings.Language;
+            string lang = cbLang.SelectedItem?.ToString() ?? _settings.Language;
             string helpText = Localization.Get(lang, "HelpText");
             string helpTitle = Localization.Get(lang, "HelpTitle");
 
