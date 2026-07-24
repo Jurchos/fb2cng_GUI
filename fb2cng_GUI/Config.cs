@@ -67,14 +67,17 @@ namespace fb2cng_GUI
             try
             {
                 // Створюємо папку Data, якщо її немає
-                string directory = Path.GetDirectoryName(ConfigPath);
-                if (!Directory.Exists(directory))
+                string? directory = Path.GetDirectoryName(ConfigPath);
+                if (!string.IsNullOrEmpty(directory))
                 {
-                    Directory.CreateDirectory(directory);
+                    if (!Directory.Exists(directory))
+                    {
+                        Directory.CreateDirectory(directory);
+                    }
                 }
 
                 // Налаштування для гарного вигляду JSON (з відступами)
-                var options = new JsonSerializerOptions { WriteIndented = true };
+                JsonSerializerOptions options = new() { WriteIndented = true };
                 string jsonString = JsonSerializer.Serialize(this, options);
 
                 File.WriteAllText(ConfigPath, jsonString);
@@ -119,7 +122,7 @@ namespace fb2cng_GUI
                 ["HideProg"] = "Hide progress bar window",
                 ["HelpTitle"] = "About Program",
                 ["HelpText"] = "A GUI wrapper for the fb2cng (fbc) converter to configure fb2 file conversion " +
-                "and add a converting option to the Windows context menu.\n\nCreated by Jurchos & Gemini\nVersion: 0.6.1"
+                "and add a converting option to the Windows context menu.\n\nCreated by Jurchos & Gemini\nVersion: 1.0"
             };
             Translations["English"] = en;
 
@@ -152,7 +155,7 @@ namespace fb2cng_GUI
                 ["HideProg"] = "Не показувати вікно прогресу",
                 ["HelpTitle"] = "Про програму",
                 ["HelpText"] = "Програма-оболонка конвертера fb2cng (fbc) для налаштування конвертації fb2-файлів " +
-                "з додаванням опції конвертування до контекстного меню Windows.\n\nСтворено: Jurchos & Gemini\nВерсія: 0.6.1"
+                "з додаванням опції конвертування до контекстного меню Windows.\n\nСтворено: Jurchos & Gemini\nВерсія: 1.0"
             };
             Translations["Українська"] = uk;
 
@@ -185,7 +188,7 @@ namespace fb2cng_GUI
                 ["HideProg"] = "Не показывать окно прогресса",
                 ["HelpTitle"] = "О программе",
                 ["HelpText"] = "Программа-оболочка конвертера fb2cng (fbc) для настройки конвертации fb2-файлов " +
-                "с добавлением опции конвертирования в контекстное меню Windows.\n\nСоздано: Jurchos & Gemini\nВерсия: 0.6.1"
+                "с добавлением опции конвертирования в контекстное меню Windows.\n\nСоздано: Jurchos & Gemini\nВерсия: 1.0"
             };
             Translations["Русский"] = ru;
         }
