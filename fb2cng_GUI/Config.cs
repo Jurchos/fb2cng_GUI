@@ -1,47 +1,30 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text.Json;
+﻿using System.Text.Json;
 
-namespace fb2cng_GUI
+namespace fb2cngGUI
 {
     // Клас для збереження та завантаження конфігурації додатка
     public class AppSettings
     {
-        public string Language { get; set; }
-        public string Format { get; set; }
+        public string Language { get; set; } = "English";
+        public string Format { get; set; } = "EPUB2";
         public bool UseCustomFolder { get; set; }
-        public string CustomFolder { get; set; }
+        public string CustomFolder { get; set; } = "";
         public bool UseCustomConfig { get; set; }
-        public string CustomConfig { get; set; }
-        public string MenuTitle { get; set; }
+        public string CustomConfig { get; set; } = "";
+        public string MenuTitle { get; set; } = "Convert with fbc";
         public bool IsIntegrated { get; set; }
-        public string Theme { get; set; }
+        public string Theme { get; set; } = "Dark";
         public bool DeleteAfterConvert { get; set; }
         public bool AutoDeleteToRecycle { get; set; }
         public bool StartMinimized { get; set; }
         public bool HideProgress { get; set; }
         public bool OverwriteExisting { get; set; }
 
-        public AppSettings()
-        {
-            Language = "English";
-            Format = "EPUB2";
-            UseCustomFolder = false;
-            CustomFolder = "";
-            UseCustomConfig = false;
-            CustomConfig = "";
-            MenuTitle = "Convert with fbc";
-            IsIntegrated = false;
-            Theme = "Dark";
-            DeleteAfterConvert = false;
-            AutoDeleteToRecycle = false;
-            StartMinimized = false;
-            HideProgress = false;
-            OverwriteExisting = false;
-        }
-
         private static readonly string ConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "GUI_config.json");
+
+        // Створюємо один статичний об'єкт налаштувань.
+        // Тепер він ініціалізується лише раз при запуску програми і перевикористовується в пам'яті.
+        private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
         public static AppSettings Load()
         {
@@ -50,50 +33,35 @@ namespace fb2cng_GUI
                 return new AppSettings();
             }
 
-            try
-            {
-                string jsonString = File.ReadAllText(ConfigPath);
-                // Десеріалізація JSON у об'єкт
-                return JsonSerializer.Deserialize<AppSettings>(jsonString) ?? new AppSettings();
-            }
-            catch
-            {
-                return new AppSettings(); // Якщо файл пошкоджений - повертаємо дефолт
-            }
+            // Передаємо JsonOptions також сюди, щоб серіалізатор читав файл з тими ж налаштуваннями
+            try { return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(ConfigPath), JsonOptions) ?? new AppSettings(); }
+            catch { return new AppSettings(); }
         }
 
         public void Save()
         {
             try
             {
-                // Створюємо папку Data, якщо її немає
-                string? directory = Path.GetDirectoryName(ConfigPath);
-                if (!string.IsNullOrEmpty(directory))
+                string? dir = Path.GetDirectoryName(ConfigPath);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                 {
-                    if (!Directory.Exists(directory))
-                    {
-                        Directory.CreateDirectory(directory);
-                    }
+                    _ = Directory.CreateDirectory(dir);
                 }
 
-                // Налаштування для гарного вигляду JSON (з відступами)
-                JsonSerializerOptions options = new() { WriteIndented = true };
-                string jsonString = JsonSerializer.Serialize(this, options);
-
-                File.WriteAllText(ConfigPath, jsonString);
+                // ВИПРАВЛЕННЯ: Замість створення "new" використовуємо готовий статичний об'єкт JsonOptions
+                File.WriteAllText(ConfigPath, JsonSerializer.Serialize(this, JsonOptions));
             }
             catch { }
         }
     }
 
-    // Клас багатомовної локалізації інтерфейсу
     public static class Localization
     {
-        private static readonly Dictionary<string, Dictionary<string, string>> Translations = new Dictionary<string, Dictionary<string, string>>();
+        private static readonly Dictionary<string, Dictionary<string, string>> Translations = [];
 
         static Localization()
         {
-            Dictionary<string, string> en = new Dictionary<string, string>
+            Translations["English"] = new Dictionary<string, string>
             {
                 ["Lang"] = "Interface Language",
                 ["Format"] = "Output Document Format",
@@ -104,6 +72,7 @@ namespace fb2cng_GUI
                 ["Deintegrate"] = "Deintegrate",
                 ["Ok"] = "OK",
                 ["Cancel"] = "Cancel",
+                ["ProgressTitle"] = "Converting...",
                 ["Success"] = "\nSuccess!\n\u2705",
                 ["WarningTitle"] = "Configuration Error",
                 ["WarningText"] = "Conflict: Multiple progress window options selected simultaneously.",
@@ -122,11 +91,9 @@ namespace fb2cng_GUI
                 ["HideProg"] = "Hide progress bar window",
                 ["HelpTitle"] = "About Program",
                 ["HelpText"] = "A GUI wrapper for the fb2cng (fbc) converter to configure fb2 file conversion " +
-                "and add a converting option to the Windows context menu.\n\nCreated by Jurchos & Gemini\nVersion: 1.0"
+                "and add a converting option to the Windows context menu.\n\nCreated by Jurchos & Gemini\nVersion: 1.2"
             };
-            Translations["English"] = en;
-
-            Dictionary<string, string> uk = new Dictionary<string, string>
+            Translations["Українська"] = new Dictionary<string, string>
             {
                 ["Lang"] = "Мова інтерфейсу",
                 ["Format"] = "Формат вихідного документа",
@@ -137,9 +104,10 @@ namespace fb2cng_GUI
                 ["Deintegrate"] = "Деінтегрувати",
                 ["Ok"] = "ОК",
                 ["Cancel"] = "Скасувати",
+                ["ProgressTitle"] = "Конвертація...",
                 ["Success"] = "\nУспішно!\n\u2705",
                 ["WarningTitle"] = "Помилка конфігурації",
-                ["WarningText"] = "Одночасно встановлено 2 галочки для вікна прогресу",
+                ["WarningText"] = "Конфлікт налаштувань: одночасно встановлено 2 галочки для вікна прогресу",
                 ["FbcMissingTitle"] = "Відсутній компонент",
                 ["FbcMissingText"] = "Відсутня програма-конвертор: перевірте наявність файлу fbc.exe в папці з програмою!",
                 ["YamlBrokenTitle"] = "Збій конвертації",
@@ -155,11 +123,9 @@ namespace fb2cng_GUI
                 ["HideProg"] = "Не показувати вікно прогресу",
                 ["HelpTitle"] = "Про програму",
                 ["HelpText"] = "Програма-оболонка конвертера fb2cng (fbc) для налаштування конвертації fb2-файлів " +
-                "з додаванням опції конвертування до контекстного меню Windows.\n\nСтворено: Jurchos & Gemini\nВерсія: 1.0"
+                "з додаванням опції конвертування до контекстного меню Windows.\n\nСтворено: Jurchos & Gemini\nВерсія: 1.2"
             };
-            Translations["Українська"] = uk;
-
-            Dictionary<string, string> ru = new Dictionary<string, string>
+            Translations["Русский"] = new Dictionary<string, string>
             {
                 ["Lang"] = "Язык интерфейса",
                 ["Format"] = "Формат выходного документа",
@@ -170,6 +136,7 @@ namespace fb2cng_GUI
                 ["Deintegrate"] = "Деинтегировать",
                 ["Ok"] = "ОК",
                 ["Cancel"] = "Отмена",
+                ["ProgressTitle"] = "Конвертация...",
                 ["Success"] = "\nУспех!\n\u2705",
                 ["WarningTitle"] = "Ошибка конфигурации",
                 ["WarningText"] = "Конфликт настроек: одновременно выбраны два варианта окна прогресса",
@@ -188,14 +155,23 @@ namespace fb2cng_GUI
                 ["HideProg"] = "Не показывать окно прогресса",
                 ["HelpTitle"] = "О программе",
                 ["HelpText"] = "Программа-оболочка конвертера fb2cng (fbc) для настройки конвертации fb2-файлов " +
-                "с добавлением опции конвертирования в контекстное меню Windows.\n\nСоздано: Jurchos & Gemini\nВерсия: 1.0"
+                "с добавлением опции конвертирования в контекстное меню Windows.\n\nСоздано: Jurchos & Gemini\nВерсия: 1.2"
             };
-            Translations["Русский"] = ru;
         }
 
         public static string Get(string lang, string key)
         {
-            return Translations.ContainsKey(lang) && Translations[lang].ContainsKey(key) ? Translations[lang][key] : key;
+            // 1. Шукаємо мову за один крок
+            if (Translations.TryGetValue(lang, out Dictionary<string, string>? langDict))
+            {
+                // 2. Шукаємо слово всередині цієї мови за один крок
+                if (langDict.TryGetValue(key, out string? translation))
+                {
+                    return translation; // Повертаємо переклад
+                }
+            }
+
+            return key; // Якщо мови або слова немає — повертаємо сам ключ
         }
     }
 }

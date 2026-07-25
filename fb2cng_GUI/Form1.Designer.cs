@@ -1,4 +1,4 @@
-﻿namespace fb2cng_GUI
+﻿namespace fb2cngGUI
 {
     partial class Form1
     {
