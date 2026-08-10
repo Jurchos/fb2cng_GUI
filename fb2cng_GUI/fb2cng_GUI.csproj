@@ -1,16 +1,42 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <!-- Тип проєкту та платформа -->
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
-    <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <ApplicationIcon>app_icon.ico</ApplicationIcon>
+    <!-- Назви та ідентифікація -->
+    <AssemblyName>fb2cng_GUI</AssemblyName>  
     <RootNamespace>fb2cngGUI</RootNamespace>
+    <!-- Компіляція та безпека типів -->
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Керування DPI на рівні системи (PerMonitorV2) -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>	  <!-- Керування DPI на рівні системи (PerMonitorV2) -->
+    <!-- Публікація (Залежна від встановленого .NET 10 на цільовому ПК) -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <!-- Програма використовуватиме встановлений .NET 10 на ПК, тому файл буде маленьким -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- Метадані файлу (Відображення у Властивості -> Деталі) -->
+    <!-- Вимикаємо додавання коміту Git до версії -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Version>1.2</Version>	    
+    <FileVersion>1.2.1.0</FileVersion>
+    <Product>Toolkit for fb2cng</Product>
+    <!-- Саме тег AssemblyTitle у Windows показує в полі "Опис файлу" -->
+    <AssemblyTitle>GUI for fb2cng</AssemblyTitle>
+    <Description>GUI for fb2cng</Description>
+    <Company>Jurchos</Company>
+    <Copyright>© 2026  Jurchos &amp; Gemini</Copyright>
+    <!-- Ресурси -->
+    <ApplicationIcon>app_icon.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Remove="app.manifest" />
+  </ItemGroup>
 
   <ItemGroup>
     <Content Include="app_icon.ico" />
