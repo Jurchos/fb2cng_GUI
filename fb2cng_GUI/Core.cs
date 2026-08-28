@@ -50,12 +50,14 @@ namespace fb2cngGUI
         // Метод безпечного видалення файлу — відправка його у Кошик Windows замість повного стирання
         public static void SendToRecycleBin(string path)
         {
+            string fullPath = Path.GetFullPath(path);
+
             const uint FO_DELETE = 0x0003;                       // Код операції: Видалення
             const ushort FOF_ALLOWUNDO = 0x0040;                 // Прапорець: Дозволити скасування
             const ushort FOF_NOCONFIRMATION = 0x0010;            // Прапорець: Не показувати стандартне вікно підтвердження Windows
             const ushort FOF_SILENT = 0x0004;                    // ДОДАНО: приховує вікно прогресу видалення Windows
             // Формуємо структуру операції. Важливо: шлях pFrom має закінчуватися подвійним нульовим символом
-            string doubleNullTerminatedPath = path + '\0' + '\0';
+            string doubleNullTerminatedPath = fullPath + '\0' + '\0';
             IntPtr pFromPointer = Marshal.StringToHGlobalUni(doubleNullTerminatedPath);
 
             try
@@ -67,10 +69,17 @@ namespace fb2cngGUI
                     fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT
                 };
 
-                _ = Win32Api.SHFileOperation(ref fileOp);
-            }
-            catch { }
+                int result = Win32Api.SHFileOperation(ref fileOp);
 
+                if (result != 0)
+                {
+                    WriteToLog($"Recycle Bin Error: Shell API code {result}", fullPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteToLog($"Recycle Bin Exception: {ex.Message}", fullPath);
+            }
             finally
             {
                 if (pFromPointer != IntPtr.Zero)

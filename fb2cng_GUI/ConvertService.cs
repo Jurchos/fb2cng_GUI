@@ -506,6 +506,8 @@ namespace fb2cngGUI
                 return;
             }
 
+            // Додаємо мікро-паузу, щоб система встигла закрити всі дескриптори після fbc.exe
+            Thread.Sleep(150);
             // 2. Якщо файл дійсно лежить у системній папці Temp — видаляємо без запитань
             if (sourceFb2.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase))
             {

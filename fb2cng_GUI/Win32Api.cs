@@ -55,7 +55,7 @@ namespace fb2cngGUI
 
         // Робота з Кошиком Windows
         // Структура повністю сумісна із генератором коду (Blittable)
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode, Pack = 1)]
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         public struct SHFILEOPSTRUCT
         {
             public IntPtr hwnd;             // Дескриптор вікна-власника діалогу операції
