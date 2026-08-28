@@ -1,6 +1,4 @@
 ﻿
-using System.Drawing.Drawing2D;
-
 namespace fb2cngGUI
 {
     public partial class Form1 : Form
@@ -53,84 +51,25 @@ namespace fb2cngGUI
                         b.ForeColor = textCol;
                         b.FlatAppearance.BorderColor = isDark ? Color.FromArgb(80, 80, 80) : Color.FromArgb(200, 200, 200);
                     }
-                    // --- ДОДАНО: Примусово перемальовуємо кнопку для оновлення заокругленої рамки ---
+                    // --- Примусово перемальовуємо кнопку для оновлення заокругленої рамки ---
                     b.Invalidate();
                 }
             }
-            if (lblDeleteSubText is var label and not null)
+            if (lblOverwriteText is var labelOW and not null)
             {
-                label.ForeColor = chkDeleteSub.Enabled ? textCol : disabledTextCol;
+                labelOW.ForeColor = chkOverwrite.Enabled ? textCol : disabledTextCol;
             }
-        }
-        // Графічний метод створення закруглених кутів для кнопок через зміну їхнього регіону
-private void MakeButtonRounded(Button btn, int radius)
-        {
-            // 1. Оновлюємо Регіон (заокруглення кутів)
-            GraphicsPath path = new();
-            float r = radius;
-            path.AddArc(0, 0, r * 2, r * 2, 180, 90);
-            path.AddArc(btn.Width - (r * 2), 0, r * 2, r * 2, 270, 90);
-            path.AddArc(btn.Width - (r * 2), btn.Height - (r * 2), r * 2, r * 2, 0, 90);
-            path.AddArc(0, btn.Height - (r * 2), r * 2, r * 2, 90, 90);
-            path.CloseAllFigures();
-
-            btn.Region?.Dispose(); // Видаляємо старий регіон, щоб звільнити пам'ять
-            btn.Region = new Region(path);
-            path.Dispose(); // Шлях більше не потрібен, видаляємо
-
-            btn.FlatStyle = FlatStyle.Flat;
-            btn.FlatAppearance.BorderSize = 0;
-
-            // 2. Очищення підписки (ВАЖЛИВО!)
-            btn.Paint += (s, ev) =>
+            // lblSkipExistingText для пропуску
+            if (lblSkipExistingText is var labelExp and not null)
             {
-                ev.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-
-                bool isDarkTheme = _settings.Theme == "Dark";
-
-                // Створюємо шлях для рамки безпосередньо під час малювання
-                using GraphicsPath buttonFramePath = new();
-                float offset = isDarkTheme ? 0.5f : 0.0f;
-                float sizeAdj = isDarkTheme ? 1.0f : 0.0f;
-
-                buttonFramePath.AddArc(offset, offset, r * 2, r * 2, 180, 90);
-                buttonFramePath.AddArc(btn.Width - (r * 2) - sizeAdj, offset, r * 2, r * 2, 270, 90);
-                buttonFramePath.AddArc(btn.Width - (r * 2) - sizeAdj, btn.Height - (r * 2) - sizeAdj, r * 2, r * 2, 0, 90);
-                buttonFramePath.AddArc(offset, btn.Height - (r * 2) - sizeAdj, r * 2, r * 2, 90, 90);
-                buttonFramePath.CloseAllFigures();
-
-                if (isDarkTheme)
-                {
-                    // ТЕМНА ТЕМА: малюємо тонку рамку
-                    Color btnBorderColor = btn.FlatAppearance.BorderColor != Color.Empty && btn.FlatAppearance.BorderColor != Color.Transparent
-                        ? btn.FlatAppearance.BorderColor : btn.ForeColor;
-
-                    using Pen pen = new(btnBorderColor, 1.2F);
-                    ev.Graphics.DrawPath(pen, buttonFramePath);
-                }
-                else
-                {
-                    // СВІТЛА ТЕМА
-                    if (btn.ForeColor == Color.White) // Акцентні кнопки (сині)
-                    {
-                        using (Pen bgPen = new(btn.BackColor, 2.5F))
-                        {
-                            ev.Graphics.DrawPath(bgPen, buttonFramePath);
-                        }
-                        using Pen overlayPen = new(Color.FromArgb(160, Color.White), 2.2F);
-                        ev.Graphics.DrawPath(overlayPen, buttonFramePath);
-                    }
-                    else // Звичайні кнопки
-                    {
-                        Color btnBorderColor = btn.FlatAppearance.BorderColor != Color.Empty && btn.FlatAppearance.BorderColor != Color.Transparent
-                            ? btn.FlatAppearance.BorderColor : Color.FromArgb(100, btn.ForeColor);
-
-                        using Pen pen = new(btnBorderColor, 2.0F);
-                        ev.Graphics.DrawPath(pen, buttonFramePath);
-                    }
-                }
-                // Тут buttonFramePath автоматично видалиться з пам'яті (через using)
-            };
+                labelExp.ForeColor = chkSkipExisting.Enabled ? textCol : disabledTextCol;
+            }
+            // Для видалення файлів (DeleteSub)
+            if (lblDeleteSubText is var labelDel and not null)
+            {
+                labelDel.ForeColor = chkDeleteSub.Enabled ? textCol : disabledTextCol;
+            }
         }
     }
 }
+

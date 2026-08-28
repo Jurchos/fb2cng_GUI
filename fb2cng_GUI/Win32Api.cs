@@ -4,9 +4,58 @@ namespace fb2cngGUI
 {
     internal static partial class Win32Api
     {
+
+        // Реєстрація гарячих клавіш через LibraryImport
+        [LibraryImport("user32.dll")]
+        internal static partial int RegisterHotKey(nint hWnd, int id, uint fsModifiers, uint vk);
+
+        [LibraryImport("user32.dll")]
+        internal static partial int UnregisterHotKey(nint hWnd, int id);
+
+        // Модифікатори клавіш
+        public const uint MOD_ALT = 0x0001;
+        public const uint MOD_CONTROL = 0x0002;
+        public const uint MOD_SHIFT = 0x0004;
+        public const uint VK_ESCAPE = 0x1B;
+
+
+        [LibraryImport("user32.dll")]
+        public static partial nint GetForegroundWindow();
+
+        [LibraryImport("user32.dll")]
+        public static partial uint GetWindowThreadProcessId(nint hWnd, nint lpdwProcessId);
+
+        [LibraryImport("kernel32.dll")]
+        public static partial uint GetCurrentThreadId();
+
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static partial bool AttachThreadInput(uint idAttach, uint idAttachTo, [MarshalAs(UnmanagedType.Bool)] bool fAttach);
+
+        [LibraryImport("user32.dll")]
+        public static partial nint SetActiveWindow(nint hWnd);
+
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static partial bool SetForegroundWindow(nint hWnd);
+
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static partial bool ShowWindow(nint hWnd, int nCmdShow);
+
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static partial bool IsIconic(nint hWnd);
+
+        [LibraryImport("user32.dll", EntryPoint = "SetProcessDpiAwarenessContext")]
+        public static partial int SetProcessDpiAwarenessContext(int dpiFlag);
+
+        [LibraryImport("shell32.dll", EntryPoint = "SHFileOperationW")]
+        public static partial int SHFileOperation(ref SHFILEOPSTRUCT FileOp);
+
         // Робота з Кошиком Windows
         // Структура повністю сумісна із генератором коду (Blittable)
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode, Pack = 1)]
         public struct SHFILEOPSTRUCT
         {
             public IntPtr hwnd;             // Дескриптор вікна-власника діалогу операції
@@ -29,45 +78,5 @@ namespace fb2cngGUI
             public IntPtr hNameMappings;    // Об'єкт зіставлення імен файлів (використовується рідко)
             public IntPtr lpszProgressTitle;// Текст заголовка вікна прогресу видалення
         }
-
-        // Тепер LibraryImport генерує код бездоганно і без помилок
-        [LibraryImport("shell32.dll", EntryPoint = "SHFileOperationW")]
-        public static partial int SHFileOperation(ref SHFILEOPSTRUCT FileOp);
-
-        [LibraryImport("user32.dll")]
-        public static partial IntPtr GetForegroundWindow();
-
-        [LibraryImport("user32.dll")]
-        public static partial uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr ProcessId);
-
-        [LibraryImport("kernel32.dll")]
-        public static partial uint GetCurrentThreadId();
-
-        // Для параметрів методів [MarshalAs] працює чудово, тому тут залишаємо bool безпечно!
-        [LibraryImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static partial bool AttachThreadInput(uint idAttach, uint idAttachTo, [MarshalAs(UnmanagedType.Bool)] bool fAttach);
-
-        [LibraryImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static partial bool SetForegroundWindow(IntPtr hWnd);
-
-        [LibraryImport("user32.dll")]
-        public static partial IntPtr SetActiveWindow(IntPtr hWnd);
-
-        [LibraryImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static partial bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
-        [LibraryImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static partial bool IsIconic(IntPtr hWnd);
-
-        [LibraryImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static partial bool HideCaret(IntPtr hWnd);
-
-        [LibraryImport("user32.dll", EntryPoint = "SetProcessDpiAwarenessContext", SetLastError = true)]
-        public static partial int SetProcessDpiAwarenessContext(int dpiFlag);
     }
 }

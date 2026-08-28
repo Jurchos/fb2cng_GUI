@@ -13,7 +13,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- Керування DPI на рівні системи (PerMonitorV2) -->
-    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>	  <!-- Керування DPI на рівні системи (PerMonitorV2) -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <!-- Публікація (Залежна від встановленого .NET 10 на цільовому ПК) -->
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>false</SelfContained>
@@ -22,8 +22,8 @@
     <!-- Метадані файлу (Відображення у Властивості -> Деталі) -->
     <!-- Вимикаємо додавання коміту Git до версії -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-    <Version>1.2</Version>	    
-    <FileVersion>1.2.1.0</FileVersion>
+    <Version>1.3</Version>	    
+    <FileVersion>1.3.3.0</FileVersion>
     <Product>Toolkit for fb2cng</Product>
     <!-- Саме тег AssemblyTitle у Windows показує в полі "Опис файлу" -->
     <AssemblyTitle>GUI for fb2cng</AssemblyTitle>
