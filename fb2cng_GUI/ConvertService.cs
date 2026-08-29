@@ -30,7 +30,7 @@ namespace fb2cngGUI
             }
         }
 
-        // Головний метод для обробки одного файлу (через Mutex)
+        // Головний метод для обробки одного файлу
         public bool ProcessSingleFile(string inputPath)
         {
             using Mutex mutex = new(false, "Local\\fb2cng_GUI_Queue_Mutex");

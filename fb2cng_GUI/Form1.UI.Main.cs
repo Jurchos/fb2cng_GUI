@@ -147,6 +147,7 @@ namespace fb2cngGUI
             {
                 try { _ = Process.Start(new ProcessStartInfo { FileName = configuratorPath, UseShellExecute = true }); } 
                 catch { }
+                _ = btnOk.Focus();
             };
 
             btnOk = new Button { FlatStyle = FlatStyle.Flat };

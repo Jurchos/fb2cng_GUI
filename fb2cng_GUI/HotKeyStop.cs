@@ -1,13 +1,14 @@
-﻿namespace fb2cngGUI
+﻿using System.Runtime.InteropServices;
+
+namespace fb2cngGUI
 {
     internal class GlobalHotkeyListener : IDisposable
     {
         private const int WM_HOTKEY = 0x0312;
-        private const int HOTKEY_ID = 999;
-
-        private Thread? _loopThread;
-        // Зберігаємо посилання на вікно, щоб мати до нього доступ із Dispose
-        private HotkeyWindow? _window;
+        private const int HOTKEY_ID = 1024;
+        private readonly Thread? _loopThread;
+        private HotkeyNativeWindow? _window;
+        private volatile bool _disposed;
 
         public GlobalHotkeyListener()
         {
@@ -15,7 +16,8 @@
             _loopThread = new Thread(RunMessageLoop)
             {
                 IsBackground = true,
-                Name = "HotkeyListenerThread"
+                Name = "HotkeyListenerThread",
+                Priority = ThreadPriority.AboveNormal // Пріоритет вище, щоб швидше реагувати
             };
             _loopThread.SetApartmentState(ApartmentState.STA);
             _loopThread.Start();
@@ -24,48 +26,53 @@
         private void RunMessageLoop()
         {
             // Створюємо вікно і зберігаємо посилання
-            _window = new HotkeyWindow();
+            _window = new HotkeyNativeWindow();
+            _window.CreateHandle(new CreateParams());
 
-            // Реєструємо Ctrl(0x0002) + Alt(0x0001) + Esc(0x1B)
-            if (Win32Api.RegisterHotKey(_window.Handle, HOTKEY_ID, Win32Api.MOD_CONTROL | Win32Api.MOD_ALT, Win32Api.VK_ESCAPE) == 0)
-            {
-                // Якщо не вдалося зареєструвати (наприклад, комбінація зайнята іншою програмою)
-                return;
-            }
+            // Клавіша: Тільда (VK_OEM_3 має код 0xC0)
+            uint keyTilde = 0xC0;
 
-            try
+            // ЦИКЛ АГРЕСИВНОЇ РЕЄСТРАЦІЇ
+            while (!_disposed)
             {
-                // Запускаємо цикл повідомлень. Потік "зависне" тут до зупинки.
-                Application.Run();
-            }
-            finally
-            {
-                // Коли цикл зупиниться (через Close або ExitThread), прибираємо реєстрацію
-                if (_window != null && _window.IsHandleCreated)
+                // Якщо сигнал вже активовано іншим процесом — нам вже не треба слухати
+                if (MarkerService.IsActive())
                 {
-                    _ = Win32Api.UnregisterHotKey(_window.Handle, HOTKEY_ID);
+                    break;
+                }
+
+                // Спробувати зареєструвати
+                if (Win32Api.RegisterHotKey(_window.Handle, HOTKEY_ID, Win32Api.MOD_ALT, keyTilde) != 0)
+                {
+                    // Успішно! Запускаємо цикл повідомлень Windows
+                    Application.Run();
+                    // Коли Application.ExitThread() викликано, ми вийдемо сюди
+                    break;
+                }
+                else
+                {
+                    // Якщо помилка 1409 (зайнято іншим процесом) — чекаємо 200мс і пробуємо знову
+                    int err = Marshal.GetLastWin32Error();
+                    if (err == 1409)
+                    {
+                        Thread.Sleep(200);
+                        continue;
+                    }
+                    break; // Інша фатальна помилка
                 }
             }
         }
 
         // Внутрішній клас вікна для перехоплення повідомлень
-        private class HotkeyWindow : Form
+        // Використовуємо NativeWindow замість Form — це швидше та надійніше для фонових задач
+        private class HotkeyNativeWindow : NativeWindow
         {
-            public HotkeyWindow()
-            {
-                // Робимо вікно повністю невидимим
-                WindowState = FormWindowState.Minimized;
-                ShowInTaskbar = false;
-                FormBorderStyle = FormBorderStyle.None;
-                Load += (s, e) => Size = new Size(0, 0);
-            }
-
             protected override void WndProc(ref Message m)
             {
                 if (m.Msg == WM_HOTKEY && m.WParam.ToInt32() == HOTKEY_ID)
                 {
-                    // Сигнал про зупинку
                     MarkerService.Signal();
+                    Application.ExitThread(); // Зупиняємо цей цикл, сигнал вже в системі
                 }
                 base.WndProc(ref m);
             }
@@ -73,23 +80,17 @@
 
         public void Dispose()
         {
-            // ПРАВИЛЬНЕ ЗАКРИТТЯ:
-            if (_window != null && _window.IsHandleCreated)
+            _disposed = true;
+            if (_window != null)
             {
                 try
                 {
-                    // Просимо вікно закритися у своєму потоці
-                    _ = _window.BeginInvoke(new Action(() =>
-                    {
-                        _window.Close();          // Закриваємо вікно
-                        Application.ExitThread(); // Зупиняємо цикл повідомлень потоку
-                    }));
+                    _ = Win32Api.UnregisterHotKey(_window.Handle, HOTKEY_ID);
+                    _window.DestroyHandle();
                 }
                 catch { }
             }
-
-            _loopThread = null;
-            GC.SuppressFinalize(this);
+            Application.ExitThread();
         }
     }
 }

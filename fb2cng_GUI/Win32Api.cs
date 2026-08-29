@@ -6,7 +6,7 @@ namespace fb2cngGUI
     {
 
         // Реєстрація гарячих клавіш через LibraryImport
-        [LibraryImport("user32.dll")]
+        [LibraryImport("user32.dll", SetLastError = true)]
         internal static partial int RegisterHotKey(nint hWnd, int id, uint fsModifiers, uint vk);
 
         [LibraryImport("user32.dll")]
@@ -16,7 +16,6 @@ namespace fb2cngGUI
         public const uint MOD_ALT = 0x0001;
         public const uint MOD_CONTROL = 0x0002;
         public const uint MOD_SHIFT = 0x0004;
-        public const uint VK_ESCAPE = 0x1B;
 
 
         [LibraryImport("user32.dll")]

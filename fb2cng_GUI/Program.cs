@@ -13,6 +13,9 @@ namespace fb2cngGUI
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            // Ініціалізуємо системний маркер ПЕРЕД будь-якими перевірками
+            MarkerService.EnsureInitialized();
+
             // Режим GUI
             if (args == null || args.Length == 0)
             {
@@ -35,11 +38,11 @@ namespace fb2cngGUI
                 return;
             }
 
-            string inputPath = args[0];
-            ConversService conversService = new(AppSettings.Current);
-
             // Вмикаємо "слухач" гарячих клавіш
             using GlobalHotkeyListener hotkeyListener = new();
+
+            string inputPath = args[0];
+            ConversService conversService = new(AppSettings.Current);
 
             if (Directory.Exists(inputPath))
             {
