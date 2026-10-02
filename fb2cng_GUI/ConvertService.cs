@@ -561,6 +561,17 @@ namespace fb2cngGUI
                 }
             }
         }
+
+        private static string GetOutputExtension(string format)
+        {
+            return format.ToLowerInvariant() switch
+            {
+                "kepub" or "kepub3" => "kepub.epub",
+                "epub2" or "epub3" => "epub",
+                _ => format.ToLowerInvariant()
+            };
+        }
+
         private static void CleanupFailedConversion(string targetDir, string sourceFb2, string format, DateTime processStartTime)
         {
             // Якщо процес було вбито або він впав, спробуємо видалити битий файл
@@ -568,7 +579,7 @@ namespace fb2cngGUI
             try
             {
                 string fileNameOnly = Path.GetFileNameWithoutExtension(sourceFb2);
-                string expectedFile = Path.Combine(targetDir, fileNameOnly + "." + format);
+                string expectedFile = Path.Combine(targetDir, fileNameOnly + "." + GetOutputExtension(format));
 
                 if (File.Exists(expectedFile))
                 {

@@ -27,7 +27,7 @@ namespace fb2cngGUI
             cbLang.SelectedIndexChanged += (s, e) => ApplyLocalization();
 
             cbFormat = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, DrawMode = DrawMode.OwnerDrawFixed };
-            cbFormat.Items.AddRange(["EPUB2", "KEPUB", "EPUB3", "AZW8", "KFX", "PDF", "TXT", "MD"]);
+            cbFormat.Items.AddRange(["EPUB2", "KEPUB", "EPUB3", "KEPUB3", "KFX", "AZW8", "PDF", "TXT", "MD"]);
             cbFormat.DrawItem += ComboBox_CustomDraw;
 
             txtMenu = new TextBox { BorderStyle = BorderStyle.FixedSingle, Multiline = true };
