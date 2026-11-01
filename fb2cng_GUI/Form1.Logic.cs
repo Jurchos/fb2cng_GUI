@@ -89,12 +89,8 @@ namespace fb2cngGUI
         {
             return
             [
-        $@"Software\Classes\.fb2\shell\{title}",
-        $@"Software\Classes\fb2file\shell\{title}",
         $@"Software\Classes\SystemFileAssociations\.fb2\shell\{title}",
         $@"Software\Classes\Directory\shell\{title}",
-        $@"Software\Classes\.fb2.zip\shell\{title}",
-        $@"Software\Classes\fb2zipfile\shell\{title}",
         $@"Software\Classes\SystemFileAssociations\.fb2.zip\shell\{title}",
         $@"Software\Classes\SystemFileAssociations\.zip\shell\{title}"
     ];
@@ -117,22 +113,12 @@ namespace fb2cngGUI
                 {
                     // --- ПРОЦЕС ІНТЕГРАЦІЇ ---
 
-                    // Створюємо зв'язки розширень з типами файлів (Association)
-                    using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\.fb2"))
-                    {
-                        key.SetValue("", "fb2file");
-                    }
-
-                    using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\.fb2.zip"))
-                    {
-                        key.SetValue("", "fb2zipfile");
-                    }
-
                     // Використовуємо назву з UI для створення нових ключів
                     foreach (string path in GetRegistryPaths(menuNameFromUi))
                     {
                         using RegistryKey shellKey = Registry.CurrentUser.CreateSubKey(path);
                         shellKey.SetValue("", menuNameFromUi);
+                        shellKey.SetValue("Icon", Application.ExecutablePath + ",0", RegistryValueKind.String); //Іконка в меню
                         using RegistryKey cmdKey = shellKey.CreateSubKey("command");
                         cmdKey.SetValue("", exeCommand);
                     }
@@ -150,9 +136,6 @@ namespace fb2cngGUI
                     {
                         Registry.CurrentUser.DeleteSubKeyTree(path, false);
                     }
-
-                    // Чистимо створений нами тип файлу для zip
-                    Registry.CurrentUser.DeleteSubKeyTree(@"Software\Classes\fb2zipfile", false);
 
                     _settings.IsIntegrated = false;
                 }
@@ -195,21 +178,41 @@ namespace fb2cngGUI
 
             try
             {
-                string regPath = $@"Software\Classes\.fb2\shell\{_settings.MenuTitle}\command";
+                // Отримуємо актуальні шляхи, які використовує програма
+                string[] paths = GetRegistryPaths(_settings.MenuTitle);
+                if (paths.Length == 0) return;
+
+                // Беремо перший шлях зі списку і додаємо до нього "\command"
+                string regPath = $@"{paths[0]}\command";
+
                 using RegistryKey? key = Registry.CurrentUser.OpenSubKey(regPath);
                 if (key != null)
                 {
                     string? currentRegValue = key.GetValue("")?.ToString();
+
+                    // Якщо шлях до EXE в реєстрі не збігається з поточним розташуванням програми
                     if (!string.IsNullOrEmpty(currentRegValue) && !currentRegValue.Contains(Application.ExecutablePath))
                     {
-                        // Вимикаємо прапорець, щоб PerformRegistryOperation зробив "інсталяцію"
+                        // Тимчасово скидаємо прапорець, щоб PerformRegistryOperation переписав реєстр
                         _settings.IsIntegrated = false;
-                        PerformRegistryOperation(isSilent: true); // ТИХИЙ РЕЖИМ
+
+                        // Перезаписуємо реєстр новими правильними шляхами
+                        PerformRegistryOperation(isSilent: true);
                         Core.WriteToLog("Registry path synchronized silently.");
                     }
                 }
+                else
+                {
+                    // Якщо раптом ключа взагалі немає (наприклад, видалили вручну), 
+                    // теж запускаємо переінсталяцію для відновлення
+                    _settings.IsIntegrated = false;
+                    PerformRegistryOperation(isSilent: true);
+                }
             }
-            catch (Exception ex) { Core.WriteToLog("Failed to sync registry path: " + ex.Message); }
+            catch (Exception ex)
+            {
+                Core.WriteToLog("Failed to sync registry path: " + ex.Message);
+            }
         }
     }
 }
